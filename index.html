@@ -433,7 +433,7 @@ function applyScenarioData(data) {
   }
   CFG.srcLat    = data.srcLat;
   CFG.srcLng    = data.srcLng;
-  if(data.srcDose) CFG.srcDose = data.srcDose;
+  if(data.srcDose !== undefined && !isNaN(data.srcDose) && data.srcDose > 0) CFG.srcDose = data.srcDose;
   CFG.windDir   = data.windDir;
   CFG.windSpeed = data.windSpeed;
   CFG.sigma     = data.sigma;
