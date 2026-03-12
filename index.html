@@ -386,9 +386,15 @@ let pollInterval = null;
 async function loadConfigFromSheet() {
   try {
     const data = await fetchJSONP(SHEETS_API + '?action=getActive');
-    if (data.scenario !== 'E' && (!data.srcLat || isNaN(data.srcLat))) {
-      addLog('⚠ 資料不完整，嘗試讀取情境A', 'w');
-      return await loadScenarioDirect('A');
+    // 情境E = 待機，直接套用不檢查座標
+    if (data.scenario === 'E') {
+      applyScenarioData(data);
+      addLog('✓ 待機中（無情境）');
+      return true;
+    }
+    if (!data.srcLat || isNaN(data.srcLat)) {
+      addLog('⚠ 資料不完整，使用預設值', 'w');
+      return false;
     }
     const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
     if (changed && lastUpdatedAt !== '') {
