@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>☢ 輻射彈爆炸擴散模擬器</title>
+<title>☢ Cs-137 髒彈擴散模擬器</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -258,7 +258,7 @@ input[type=range]::-webkit-slider-thumb {
 <div class="wrap">
   <div class="hdr">
     <h1>☢ Cs-137 DIRTY BOMB SIM</h1>
-    <div class="sub">髒彈擴散 · 煙羽風向 · GPS 即時追蹤</div>
+    <div class="sub">髒彈擴散 · 高斯煙流模型 · GPS 即時追蹤</div>
   </div>
 
   <!-- SCENARIO CONFIG -->
@@ -329,6 +329,12 @@ input[type=range]::-webkit-slider-thumb {
       <div style="margin-top:10px;">
         <button class="btn amber" onclick="applyConfig()">✓ 套用設定</button>
       </div>
+      <div style="margin-top:14px;">
+        <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
+        <div class="log-box" id="logBox">
+          <div class="le"><span class="ts">--:--:--</span><span class="msg">Cs-137 髒彈擴散模擬器就緒</span></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -396,6 +402,7 @@ input[type=range]::-webkit-slider-thumb {
         <div class="dist-num" id="cumDoseNum" style="font-size:20px;">0.000</div>
         <div class="dist-lbl">累積劑量 mSv</div>
       </div>
+
     </div>
   </div>
 
@@ -408,29 +415,9 @@ input[type=range]::-webkit-slider-thumb {
     <div class="bearing-txt" id="bearingTxt">方位角: ---°</div>
   </div>
 
-  <!-- GEIGER -->
-  <div class="panel">
-    <div class="ptitle">▶ 蓋格計數器</div>
-    <canvas id="cvsGeiger"></canvas>
-    <div class="cpm-row">
-      <div>
-        <div class="cpm-num" id="cpmNum">0</div>
-        <div class="cpm-lbl">CPM</div>
-      </div>
-      <div style="text-align:right;font-size:11px;color:var(--green-dim);">
-        Cs-137 γ 能量<br>
-        <span style="color:var(--green)">0.662 MeV</span>
-      </div>
-    </div>
-  </div>
 
-  <!-- LOG -->
-  <div class="panel">
-    <div class="ptitle">▶ 系統記錄</div>
-    <div class="log-box" id="logBox">
-      <div class="le"><span class="ts">--:--:--</span><span class="msg">Cs-137 髒彈擴散模擬器就緒</span></div>
-    </div>
-  </div>
+
+
 </div>
 
 <script>
@@ -832,7 +819,7 @@ function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
   const wf = Math.exp(-(angleDiff*angleDiff)/(2*sigmaAng*sigmaAng));
   const upwind = isUpwind(bearingFromSrc, CFG.windDir);
   const wfFinal = wf*(upwind?0.08:1.0)+0.05;
-  document.getElementById('windEffect').textContent = wfFinal.toFixed(2)+'×';
+
 
   // Compass
   drawCompass(bearingToSrc, distM, dose, CFG.windDir);
