@@ -422,6 +422,15 @@ async function loadScenarioDirect(scenario) {
 
 // Apply scenario data to CFG
 function applyScenarioData(data) {
+  const lbl = document.getElementById('activeScenarioLabel');
+  if (data.scenario === 'E' || !data.srcLat || data.srcLat === 0) {
+    // Standby mode
+    if(lbl) lbl.textContent = '待機';
+    document.getElementById('doseNum').textContent = '---';
+    document.getElementById('doseUnit').textContent = 'μSv/h';
+    document.getElementById('distNum').textContent = '---';
+    return;
+  }
   CFG.srcLat    = data.srcLat;
   CFG.srcLng    = data.srcLng;
   if(data.srcDose) CFG.srcDose = data.srcDose;
@@ -432,8 +441,6 @@ function applyScenarioData(data) {
   CFG.refDose   = data.refDose;
   recalcQ();
   syncAdminUI();
-  // Update header label
-  const lbl = document.getElementById('activeScenarioLabel');
   if(lbl && data.scenario) lbl.textContent = data.scenario;
 }
 
@@ -840,7 +847,7 @@ let currentScenario = 'A';
 // Select and preview a scenario from sheet
 async function selectScenario(scenario) {
   // Update button styles
-  ['A','B','C','D'].forEach(s => {
+  ['A','B','C','D','E'].forEach(s => {
     const btn = document.getElementById('scnBtn' + s);
     if(btn) {
       btn.classList.toggle('scn-active', s === scenario);
@@ -852,6 +859,11 @@ async function selectScenario(scenario) {
 
   if (scenario === 'D') {
     // D is custom, just highlight, don't overwrite fields
+    return;
+  }
+  if (scenario === 'E') {
+    // E is standby, no params
+    document.getElementById('scnStatus').textContent = '已選擇「無情境」— 按發布後學員畫面將重置';
     return;
   }
 
@@ -1157,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="btn" id="scnBtnB" onclick="selectScenario('B')">情境 B</button>
         <button class="btn" id="scnBtnC" onclick="selectScenario('C')">情境 C</button>
         <button class="btn" id="scnBtnD" onclick="selectScenario('D')">情境 D（自訂）</button>
+        <button class="btn" id="scnBtnE" onclick="selectScenario('E')" style="grid-column:1/-1;">無情境（待機）</button>
       </div>
       <div id="scnStatus" style="font-size:14px;color:var(--amber);letter-spacing:2px;margin-bottom:10px;min-height:20px;"></div>
 
