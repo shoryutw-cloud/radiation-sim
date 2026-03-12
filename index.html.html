@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>☢ Cs-137 髒彈擴散模擬器</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --bg: #020608;
+  --panel: #030c10;
+  --green: #00e5ff;
+  --green-dim: #0088aa;
+  --green-dark: #001a22;
+  --amber: #ffb300;
+  --red: #ff2020;
+  --orange: #ff6600;
+  --lime: #76ff03;
+  --scanline: rgba(0,229,255,0.025);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scanline) 2px,var(--scanline) 4px);
+  pointer-events:none; z-index:1000;
+}
+
+.wrap {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 12px 12px 40px;
+  position: relative; z-index:1;
+}
+
+/* HEADER */
+.hdr {
+  text-align:center;
+  padding: 16px 0 10px;
+  border-bottom: 1px solid var(--green-dark);
+  margin-bottom: 14px;
+}
+.hdr h1 {
+  font-family:'Orbitron',sans-serif;
+  font-size: 16px;
+  font-weight:900;
+  letter-spacing:4px;
+  color: var(--green);
+  text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,229,255,0.3);
+  animation: flicker 6s infinite;
+}
+.hdr .sub { font-size:9px; color:var(--green-dim); letter-spacing:3px; margin-top:5px; }
+@keyframes flicker { 0%,93%,100%{opacity:1} 94%{opacity:.7} 96%{opacity:.5} 98%{opacity:1} }
+
+/* PANEL */
+.panel {
+  border:1px solid var(--green-dark);
+  background: var(--panel);
+  padding:14px;
+  margin-bottom:12px;
+  position:relative;
+  box-shadow: 0 0 20px rgba(0,229,255,0.03), inset 0 0 40px rgba(0,0,0,0.6);
+}
+.panel::before {
+  content:''; position:absolute; top:0;left:0;right:0; height:1px;
+  background: linear-gradient(90deg,transparent,var(--green-dim),transparent);
+}
+.ptitle {
+  font-family:'Orbitron',sans-serif;
+  font-size:9px; letter-spacing:4px;
+  color:var(--green-dim); margin-bottom:12px; text-transform:uppercase;
+}
+
+/* ADMIN BADGE */
+.admin-badge {
+  display:inline-block;
+  border:1px solid var(--amber);
+  color:var(--amber);
+  font-size:9px; letter-spacing:3px;
+  padding:2px 8px; margin-bottom:10px;
+}
+
+/* GPS STATUS */
+.gps-row { display:flex; align-items:center; gap:8px; font-size:11px; margin-bottom:8px; }
+.gps-dot { width:10px;height:10px;border-radius:50%;background:var(--green-dim);flex-shrink:0; }
+.gps-dot.on { background:var(--lime); animation:blink 1s infinite; }
+.gps-dot.err { background:var(--red); }
+@keyframes blink { 50%{opacity:0} }
+
+.info-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:6px;
+  font-size:10px; color:var(--green-dim);
+}
+.info-grid span { color:var(--green); font-size:12px; display:block; margin-top:2px; }
+
+/* DOSE BIG */
+.dose-big { text-align:center; padding:10px 0 6px; }
+.dose-num {
+  font-family:'Orbitron',sans-serif;
+  font-size:58px; font-weight:900; line-height:1;
+  transition: color .4s;
+  text-shadow: 0 0 40px currentColor;
+}
+.dose-unit { font-size:11px; color:var(--green-dim); letter-spacing:3px; margin-top:4px; }
+
+.dist-row {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--green-dark);
+}
+.dist-block { text-align:center; }
+.dist-num {
+  font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700;
+  color:#00ffcc; text-shadow:0 0 15px #00ffcc;
+}
+.dist-lbl { font-size:9px; color:var(--green-dim); letter-spacing:2px; margin-top:2px; }
+
+/* GAUGE */
+.gauge-wrap { margin:10px 0; }
+.gauge-lbls { display:flex; justify-content:space-between; font-size:9px; color:rgba(0,229,255,.3); margin-bottom:4px; }
+.gauge-track {
+  height:20px; background:var(--green-dark);
+  border:1px solid rgba(0,229,255,.15); overflow:hidden; position:relative;
+}
+.gauge-fill { height:100%; width:0%; transition:width .5s,background .5s; }
+
+/* ALERT DOTS */
+.alert-row { display:flex; gap:6px; margin:10px 0; }
+.adot {
+  flex:1; height:26px; border:1px solid; display:flex;
+  align-items:center; justify-content:center;
+  font-size:9px; letter-spacing:1px; transition:all .3s; opacity:.2;
+}
+.adot.on { opacity:1; animation:pdot .8s infinite; }
+@keyframes pdot { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 8px 2px transparent} }
+
+/* COMPASS */
+.compass-wrap { display:flex; justify-content:center; padding:8px 0; }
+#cvsCompass { width:170px; height:170px; display:block; }
+.bearing-txt { text-align:center; font-size:10px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
+
+/* GEIGER */
+#cvsGeiger { width:100%; height:65px; display:block; background:#000; border:1px solid var(--green-dark); }
+.cpm-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:8px; }
+.cpm-num { font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700; color:#00ffcc; text-shadow:0 0 15px #00ffcc; }
+.cpm-lbl { font-size:9px; color:var(--green-dim); letter-spacing:2px; }
+
+/* WIND CONTROL */
+.wind-wrap { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.wind-compass { position:relative; width:80px; height:80px; flex-shrink:0; }
+#cvsWind { width:80px; height:80px; display:block; }
+.wind-info { flex:1; font-size:11px; }
+.wind-info label { color:var(--green-dim); font-size:10px; letter-spacing:2px; display:block; margin-bottom:6px; }
+input[type=range] {
+  -webkit-appearance:none; width:100%; height:4px;
+  background:var(--green-dark); outline:none; border:1px solid rgba(0,229,255,.2);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:14px; height:14px; background:var(--green); cursor:pointer;
+}
+
+/* SOURCE CONFIG */
+.src-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.src-field label { font-size:9px; color:var(--green-dim); letter-spacing:2px; display:block; margin-bottom:4px; }
+.src-field input[type=text], .src-field input[type=number] {
+  width:100%; background:#000; border:1px solid var(--green-dark);
+  color:var(--green); font-family:'Share Tech Mono',monospace; font-size:12px;
+  padding:6px 8px; outline:none;
+}
+.src-field input:focus { border-color:var(--green-dim); }
+
+/* BUTTONS */
+.btn {
+  font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:3px;
+  padding:12px; border:1px solid var(--green-dim); background:transparent;
+  color:var(--green); cursor:pointer; width:100%; transition:all .2s;
+  text-transform:uppercase; position:relative; overflow:hidden;
+}
+.btn::before {
+  content:''; position:absolute; inset:0; background:var(--green);
+  transform:translateX(-101%); transition:transform .2s;
+}
+.btn:hover::before { transform:translateX(0); }
+.btn:hover { color:#000; }
+.btn:disabled { opacity:.3; cursor:not-allowed; }
+.btn.amber { border-color:var(--amber); color:var(--amber); }
+.btn.amber::before { background:var(--amber); }
+.btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+/* LOG */
+.log-box { max-height:90px; overflow-y:auto; font-size:10px; color:var(--green-dim); line-height:2; }
+.log-box::-webkit-scrollbar { width:3px; }
+.log-box::-webkit-scrollbar-thumb { background:var(--green-dim); }
+.le { border-bottom:1px solid rgba(0,229,255,.04); }
+.le .ts { color:rgba(0,229,255,.3); margin-right:8px; }
+.le.w .ts,.le.w .msg { color:var(--amber); }
+.le.d .ts,.le.d .msg { color:var(--red); }
+
+/* FLASH */
+.flash { position:fixed;inset:0;background:rgba(255,32,32,.07);pointer-events:none;z-index:999;opacity:0; }
+.flash.on { animation:flanim .6s infinite; }
+@keyframes flanim { 50%{opacity:1} }
+
+/* FOUND */
+.found-overlay { position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:2000;display:none;align-items:center;justify-content:center; }
+.found-overlay.show { display:flex; }
+.found-box {
+  border:2px solid var(--red); background:#000; padding:28px 22px; text-align:center;
+  max-width:320px; box-shadow:0 0 60px rgba(255,32,32,.4);
+}
+.found-box h2 { font-family:'Orbitron',sans-serif; font-size:20px; color:var(--red); text-shadow:0 0 20px var(--red); letter-spacing:3px; animation:flicker 1s infinite; }
+.found-box p { color:var(--amber); margin-top:10px; font-size:11px; letter-spacing:2px; line-height:2.2; }
+
+/* DOSE LEVEL INDICATOR */
+.level-bar {
+  display:flex; gap:4px; margin:8px 0;
+}
+.level-seg {
+  flex:1; height:6px; border-radius:1px;
+  transition: opacity .3s;
+}
+
+/* accordion for admin */
+.admin-toggle {
+  font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:3px;
+  color:var(--amber); background:transparent; border:1px solid rgba(255,179,0,.3);
+  padding:6px 12px; cursor:pointer; width:100%; text-align:left; margin-bottom:0;
+}
+.admin-body { display:none; padding-top:12px; }
+.admin-body.open { display:block; }
+</style>
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+
+<div class="found-overlay" id="foundOverlay">
+  <div class="found-box">
+    <h2>☢ 射源定位成功</h2>
+    <p id="foundInfo"></p>
+    <button class="btn" style="margin-top:16px;" onclick="document.getElementById('foundOverlay').classList.remove('show')">確認 CONFIRM</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="hdr">
+    <h1>☢ Cs-137 DIRTY BOMB SIM</h1>
+    <div class="sub">髒彈擴散 · 高斯煙流模型 · GPS 即時追蹤</div>
+  </div>
+
+  <!-- ADMIN CONFIG -->
+  <div class="panel">
+    <button class="admin-toggle" onclick="toggleAdmin()">⚙ 教官設定面板 ▾</button>
+    <div class="admin-body" id="adminBody">
+      <div class="admin-badge">INSTRUCTOR MODE</div>
+      <div class="src-grid">
+        <div class="src-field">
+          <label>射源緯度 LAT</label>
+          <input type="text" id="srcLat" value="25.003327">
+        </div>
+        <div class="src-field">
+          <label>射源經度 LNG</label>
+          <input type="text" id="srcLng" value="121.526629">
+        </div>
+        <div class="src-field">
+          <label>爆炸點劑量 (mSv/h)</label>
+          <input type="number" id="srcDose" value="500" min="1" max="9999">
+        </div>
+        <div class="src-field">
+          <label>校準距離 (m)</label>
+          <input type="number" id="refDist" value="70" min="1">
+        </div>
+        <div class="src-field">
+          <label>校準點劑量 (mSv/h)</label>
+          <input type="number" id="refDose" value="1" min="0.001" step="0.001">
+        </div>
+        <div class="src-field">
+          <label>定位成功距離 (m)</label>
+          <input type="number" id="findRadius" value="10" min="1">
+        </div>
+      </div>
+
+      <!-- WIND -->
+      <div class="ptitle" style="margin-top:8px;">風向設定</div>
+      <div class="wind-wrap">
+        <div class="wind-compass">
+          <canvas id="cvsWind" width="80" height="80"></canvas>
+        </div>
+        <div class="wind-info">
+          <label>風向（吹向）: <span id="windDirLabel" style="color:var(--green)">東南 135°</span></label>
+          <input type="range" id="windDir" min="0" max="359" value="135" oninput="onWindChange()">
+          <div style="margin-top:10px;">
+          <label>風速: <span id="windSpeedLabel" style="color:var(--green)">3 m/s</span></label>
+          <input type="range" id="windSpeed" min="1" max="15" value="3" oninput="onWindSpeedChange()">
+          </div>
+          <div style="margin-top:10px;">
+          <label>擴散寬度 σ: <span id="sigmaLabel" style="color:var(--green)">20 m</span></label>
+          <input type="range" id="sigmaCtrl" min="5" max="80" value="20" oninput="onSigmaChange()">
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn amber" onclick="applyConfig()">✓ 套用設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GPS -->
+  <div class="panel">
+    <div class="ptitle">▶ GPS 定位狀態</div>
+    <div class="gps-row">
+      <div class="gps-dot" id="gpsDot"></div>
+      <span id="gpsMsg">點擊下方按鈕啟動 GPS</span>
+    </div>
+    <div class="info-grid">
+      <div>我的緯度<span id="myLat">---</span></div>
+      <div>我的經度<span id="myLng">---</span></div>
+      <div>GPS 精度<span id="myAcc">--- m</span></div>
+      <div>更新時間<span id="gpsTime">---</span></div>
+    </div>
+    <div style="margin-top:10px;">
+      <button class="btn" id="btnStart" onclick="startGPS()">▶ 啟動 GPS 探測</button>
+    </div>
+  </div>
+
+  <!-- DOSE -->
+  <div class="panel">
+    <div class="ptitle">▶ 即時輻射劑量率</div>
+    <div class="dose-big">
+      <div class="dose-num" id="doseNum">---</div>
+      <div class="dose-unit">mSv/h · MILLISIEVERT PER HOUR</div>
+    </div>
+
+    <div class="level-bar">
+      <div class="level-seg" style="background:#00ff41;" id="ls0"></div>
+      <div class="level-seg" style="background:#aaff00;" id="ls1"></div>
+      <div class="level-seg" style="background:#ffb300;" id="ls2"></div>
+      <div class="level-seg" style="background:#ff6600;" id="ls3"></div>
+      <div class="level-seg" style="background:#ff2020;" id="ls4"></div>
+    </div>
+
+    <div class="gauge-wrap">
+      <div class="gauge-lbls"><span>本底</span><span>0.1</span><span>1</span><span>5</span><span>10+mSv/h</span></div>
+      <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div></div>
+    </div>
+
+    <div class="alert-row">
+      <div class="adot" id="d0" style="border-color:#00ff41;color:#00ff41;">正常</div>
+      <div class="adot" id="d1" style="border-color:#aaff00;color:#aaff00;">注意</div>
+      <div class="adot" id="d2" style="border-color:#ffb300;color:#ffb300;">警戒</div>
+      <div class="adot" id="d3" style="border-color:#ff6600;color:#ff6600;">危險</div>
+      <div class="adot" id="d4" style="border-color:#ff2020;color:#ff2020;">緊急</div>
+    </div>
+
+    <div class="dist-row">
+      <div class="dist-block">
+        <div class="dist-num" id="distNum">---</div>
+        <div class="dist-lbl">距射源 (公尺)</div>
+      </div>
+      <div class="dist-block">
+        <div class="dist-num" id="cumDoseNum" style="font-size:20px;">0.000</div>
+        <div class="dist-lbl">累積劑量 mSv</div>
+      </div>
+      <div class="dist-block">
+        <div class="dist-num" id="windEffect" style="font-size:20px;color:var(--amber);">---</div>
+        <div class="dist-lbl">風場係數</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPASS -->
+  <div class="panel">
+    <div class="ptitle">▶ 射源方位 + 風場示意</div>
+    <div class="compass-wrap">
+      <canvas id="cvsCompass" width="170" height="170"></canvas>
+    </div>
+    <div class="bearing-txt" id="bearingTxt">方位角: ---°</div>
+  </div>
+
+  <!-- GEIGER -->
+  <div class="panel">
+    <div class="ptitle">▶ 蓋格計數器</div>
+    <canvas id="cvsGeiger"></canvas>
+    <div class="cpm-row">
+      <div>
+        <div class="cpm-num" id="cpmNum">0</div>
+        <div class="cpm-lbl">CPM</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--green-dim);">
+        Cs-137 γ 能量<br>
+        <span style="color:var(--green)">0.662 MeV</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="panel">
+    <div class="ptitle">▶ 系統記錄</div>
+    <div class="log-box" id="logBox">
+      <div class="le"><span class="ts">--:--:--</span><span class="msg">Cs-137 髒彈擴散模擬器就緒</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG (defaults — overridden by admin panel)
+// ============================================================
+let CFG = {
+  srcLat: 25.003327,
+  srcLng: 121.526629,
+  srcDose: 500,       // mSv/h at source point
+  refDist: 70,        // metres at which refDose applies
+  refDose: 1,         // mSv/h at refDist
+  findRadius: 10,     // metres to trigger "found"
+  windDir: 135,       // degrees, direction plume travels (SE)
+  windSpeed: 3,       // m/s
+  sigma: 20,          // Gaussian crosswind spread (metres)
+};
+
+// Derive source strength Q from reference point
+// Gaussian plume on-axis: D(x) = Q / (2π σ² u) * exp(-r²/(2σ²)) * windFactor
+// We use a simplified model: D(r, θ) = Q_eff / r² * G(θ, windDir, σ_angular)
+// Calibrated so that D(refDist, downwind) = refDose
+let Q_eff = 1; // will be recalculated
+
+function recalcQ() {
+  // On-axis (downwind) dose at refDist = Q_eff / refDist²
+  // => Q_eff = refDose * refDist²
+  Q_eff = CFG.refDose * CFG.refDist * CFG.refDist;
+}
+recalcQ();
+
+// ============================================================
+// PHYSICS MODEL
+// Combines inverse-square falloff with Gaussian angular spread
+// ============================================================
+const BACKGROUND = 0.0001; // mSv/h (≈0.1 μSv/h)
+
+function calcDose(distM, bearingFromSource) {
+  // bearingFromSource: bearing FROM source TO sensor (degrees)
+  if (distM < 0.5) return CFG.srcDose;
+
+  // Inverse square component
+  const invSq = Q_eff / (distM * distM);
+
+  // Gaussian plume angular factor
+  // windDir = direction plume travels
+  // downwind direction = windDir
+  // angle between sensor bearing and downwind direction
+  const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
+
+  // σ_angular increases with distance (simple linear approximation)
+  const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.1);
+
+  // Convert angular sigma to arc-length sigma at this distance
+  // σ_arc = sigmaEff (metres), convert to angle: σ_ang = sigmaEff/distM * (180/π)
+  const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
+
+  // Gaussian factor (0 to 1)
+  const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+
+  // Upwind penalty: upwind side gets much less
+  const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
+
+  const windFactor = gaussian * upwindFactor + 0.05; // 0.05 = minimum from scatter
+
+  const dose = invSq * windFactor + BACKGROUND;
+  return Math.min(dose, CFG.srcDose);
+}
+
+function deltaAngle(a, b) {
+  let d = Math.abs(a - b) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+function isUpwind(sensorBearing, windDir) {
+  // Upwind = sensor is roughly opposite to wind direction from source
+  const d = deltaAngle(sensorBearing, (windDir + 180) % 360);
+  return d < 70;
+}
+
+// ============================================================
+// HAVERSINE + BEARING
+// ============================================================
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function bearing(lat1, lng1, lat2, lng2) {
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const la1 = lat1*Math.PI/180, la2 = lat2*Math.PI/180;
+  const y = Math.sin(dLng)*Math.cos(la2);
+  const x = Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dLng);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let myPos = null;
+let cumDose = 0;
+let lastUpdateMs = null;
+let foundSource = false;
+let geigerHist = [];
+let watchId = null;
+
+// ============================================================
+// GEIGER CANVAS
+// ============================================================
+const cvsG = document.getElementById('cvsGeiger');
+const gCtx = cvsG.getContext('2d');
+function resizeGeiger() { cvsG.width = cvsG.parentElement.clientWidth-28; cvsG.height=65; }
+resizeGeiger();
+window.addEventListener('resize', resizeGeiger);
+
+function drawGeiger(cpm) {
+  const W=cvsG.width, H=65;
+  gCtx.clearRect(0,0,W,H);
+  gCtx.fillStyle='#000'; gCtx.fillRect(0,0,W,H);
+  const prob = Math.min(cpm/1500, 1);
+  geigerHist.push(Math.random()<prob*0.5 ? 0.3+Math.random()*0.7*prob : 0.02+Math.random()*0.05);
+  if (geigerHist.length>W) geigerHist.shift();
+  gCtx.strokeStyle='#00e5ff'; gCtx.lineWidth=1.5; gCtx.shadowBlur=5; gCtx.shadowColor='#00e5ff';
+  gCtx.beginPath();
+  for(let i=0;i<geigerHist.length;i++){
+    const y=H-2-geigerHist[i]*(H-6);
+    i===0?gCtx.moveTo(i,y):gCtx.lineTo(i,y);
+  }
+  gCtx.stroke(); gCtx.shadowBlur=0;
+  gCtx.strokeStyle='rgba(0,229,255,.1)'; gCtx.lineWidth=1;
+  gCtx.beginPath(); gCtx.moveTo(0,H-2); gCtx.lineTo(W,H-2); gCtx.stroke();
+}
+
+// ============================================================
+// COMPASS CANVAS
+// ============================================================
+const cvsC = document.getElementById('cvsCompass');
+const cCtx = cvsC.getContext('2d');
+
+function drawCompass(bearingToSource, distM, dose, windDir) {
+  const W=170,H=170,cx=85,cy=85,r=78;
+  cCtx.clearRect(0,0,W,H);
+
+  // BG
+  cCtx.beginPath(); cCtx.arc(cx,cy,r,0,Math.PI*2);
+  cCtx.fillStyle='#000d05'; cCtx.fill();
+  cCtx.strokeStyle='rgba(0,229,255,.15)'; cCtx.lineWidth=1; cCtx.stroke();
+
+  // Rings
+  [55,35,18].forEach(rr=>{
+    cCtx.beginPath(); cCtx.arc(cx,cy,rr,0,Math.PI*2);
+    cCtx.strokeStyle='rgba(0,229,255,.06)'; cCtx.stroke();
+  });
+
+  // Wind cone (plume direction)
+  const windRad = (windDir-90)*Math.PI/180;
+  const coneAngle = Math.PI/6; // 30°
+  cCtx.beginPath();
+  cCtx.moveTo(cx,cy);
+  cCtx.arc(cx,cy,r-2, windRad-coneAngle, windRad+coneAngle);
+  cCtx.closePath();
+  cCtx.fillStyle='rgba(255,179,0,0.07)';
+  cCtx.fill();
+
+  // Wind arrow
+  const wx=cx+Math.cos(windRad)*60, wy=cy+Math.sin(windRad)*60;
+  cCtx.strokeStyle='rgba(255,179,0,0.5)'; cCtx.lineWidth=1.5; cCtx.setLineDash([3,4]);
+  cCtx.beginPath(); cCtx.moveTo(cx,cy); cCtx.lineTo(wx,wy); cCtx.stroke();
+  cCtx.setLineDash([]);
+
+  // Cardinals
+  const cards=['N','E','S','W'];
+  cCtx.fillStyle='rgba(0,229,255,.35)';
+  cCtx.font='10px Share Tech Mono'; cCtx.textAlign='center'; cCtx.textBaseline='middle';
+  cards.forEach((c,i)=>{
+    const a=i*Math.PI/2-Math.PI/2;
+    cCtx.fillText(c, cx+Math.cos(a)*68, cy+Math.sin(a)*68);
+  });
+
+  // Dose halo
+  if (myPos) {
+    const intensity = Math.min(dose/10,1);
+    const col = dose<0.1?'0,229,255': dose<1?'118,255,3': dose<3?'255,179,0':'255,32,32';
+    const grad = cCtx.createRadialGradient(cx,cy,0,cx,cy,r);
+    grad.addColorStop(0,`rgba(${col},${0.18*intensity})`);
+    grad.addColorStop(1,'transparent');
+    cCtx.beginPath(); cCtx.arc(cx,cy,r,0,Math.PI*2);
+    cCtx.fillStyle=grad; cCtx.fill();
+  }
+
+  // Source arrow
+  if (myPos) {
+    const rad=(bearingToSource-90)*Math.PI/180;
+    const aLen=58;
+    const ax=cx+Math.cos(rad)*aLen, ay=cy+Math.sin(rad)*aLen;
+    const col=dose<0.1?'#00e5ff':dose<1?'#76ff03':dose<3?'#ffb300':'#ff2020';
+    cCtx.strokeStyle=col; cCtx.lineWidth=2.5; cCtx.shadowBlur=10; cCtx.shadowColor=col;
+    cCtx.beginPath(); cCtx.moveTo(cx,cy); cCtx.lineTo(ax,ay); cCtx.stroke();
+    const hl=11,ha=0.38;
+    cCtx.beginPath();
+    cCtx.moveTo(ax,ay);
+    cCtx.lineTo(ax-hl*Math.cos(rad-ha),ay-hl*Math.sin(rad-ha));
+    cCtx.moveTo(ax,ay);
+    cCtx.lineTo(ax-hl*Math.cos(rad+ha),ay-hl*Math.sin(rad+ha));
+    cCtx.stroke();
+    cCtx.shadowBlur=0;
+    cCtx.fillStyle=col; cCtx.font='13px serif';
+    cCtx.textAlign='center'; cCtx.textBaseline='middle';
+    cCtx.fillText('☢', ax+Math.cos(rad)*9, ay+Math.sin(rad)*9);
+  }
+
+  // Me dot
+  cCtx.beginPath(); cCtx.arc(cx,cy,5,0,Math.PI*2);
+  cCtx.fillStyle='#00e5ff'; cCtx.shadowBlur=10; cCtx.shadowColor='#00e5ff';
+  cCtx.fill(); cCtx.shadowBlur=0;
+
+  // Dist label
+  if (myPos) {
+    cCtx.fillStyle='rgba(0,255,204,.5)'; cCtx.font='9px Share Tech Mono';
+    cCtx.textAlign='center'; cCtx.textBaseline='bottom';
+    cCtx.fillText(distM<1000?`${Math.round(distM)}m`:`${(distM/1000).toFixed(2)}km`, cx, H-6);
+  }
+
+  // Wind label
+  cCtx.fillStyle='rgba(255,179,0,.6)'; cCtx.font='9px Share Tech Mono';
+  cCtx.textAlign='center'; cCtx.textBaseline='top';
+  cCtx.fillText(`風→${windDirName(windDir)}`, cx, 6);
+}
+
+// ============================================================
+// WIND MINI COMPASS
+// ============================================================
+const cvsW = document.getElementById('cvsWind');
+const wCtx = cvsW.getContext('2d');
+
+function drawWindCompass(dir) {
+  wCtx.clearRect(0,0,80,80);
+  wCtx.beginPath(); wCtx.arc(40,40,36,0,Math.PI*2);
+  wCtx.fillStyle='#000d05'; wCtx.fill();
+  wCtx.strokeStyle='rgba(255,179,0,.3)'; wCtx.lineWidth=1; wCtx.stroke();
+  const cards=['N','E','S','W'];
+  wCtx.fillStyle='rgba(255,179,0,.4)'; wCtx.font='8px Share Tech Mono';
+  wCtx.textAlign='center'; wCtx.textBaseline='middle';
+  cards.forEach((c,i)=>{
+    const a=i*Math.PI/2-Math.PI/2;
+    wCtx.fillText(c,40+Math.cos(a)*28,40+Math.sin(a)*28);
+  });
+  const rad=(dir-90)*Math.PI/180;
+  const ax=40+Math.cos(rad)*22, ay=40+Math.sin(rad)*22;
+  wCtx.strokeStyle='#ffb300'; wCtx.lineWidth=2; wCtx.shadowBlur=6; wCtx.shadowColor='#ffb300';
+  wCtx.beginPath(); wCtx.moveTo(40,40); wCtx.lineTo(ax,ay); wCtx.stroke();
+  wCtx.shadowBlur=0;
+  wCtx.beginPath(); wCtx.arc(40,40,3,0,Math.PI*2);
+  wCtx.fillStyle='#ffb300'; wCtx.fill();
+}
+
+function windDirName(deg) {
+  const d=['北','東北','東','東南','南','西南','西','西北'];
+  return d[Math.round(deg/45)%8];
+}
+
+function onWindChange() {
+  const v = parseInt(document.getElementById('windDir').value);
+  document.getElementById('windDirLabel').textContent = `${windDirName(v)} ${v}°`;
+  drawWindCompass(v);
+}
+
+function onWindSpeedChange() {
+  const v = document.getElementById('windSpeed').value;
+  document.getElementById('windSpeedLabel').textContent = `${v} m/s`;
+}
+
+function onSigmaChange() {
+  const v = document.getElementById('sigmaCtrl').value;
+  document.getElementById('sigmaLabel').textContent = `${v} m`;
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function toggleAdmin() {
+  const b = document.getElementById('adminBody');
+  b.classList.toggle('open');
+}
+
+function applyConfig() {
+  CFG.srcLat = parseFloat(document.getElementById('srcLat').value);
+  CFG.srcLng = parseFloat(document.getElementById('srcLng').value);
+  CFG.srcDose = parseFloat(document.getElementById('srcDose').value);
+  CFG.refDist = parseFloat(document.getElementById('refDist').value);
+  CFG.refDose = parseFloat(document.getElementById('refDose').value);
+  CFG.findRadius = parseFloat(document.getElementById('findRadius').value);
+  CFG.windDir = parseInt(document.getElementById('windDir').value);
+  CFG.windSpeed = parseFloat(document.getElementById('windSpeed').value);
+  CFG.sigma = parseFloat(document.getElementById('sigmaCtrl').value);
+  recalcQ();
+  foundSource = false;
+  addLog(`✓ 設定已套用 — 射源(${CFG.srcLat.toFixed(5)},${CFG.srcLng.toFixed(5)}) 風向${CFG.windDir}° σ=${CFG.sigma}m`,'w');
+  document.getElementById('adminBody').classList.remove('open');
+}
+
+// ============================================================
+// UI UPDATE
+// ============================================================
+function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
+  // Dose display
+  const dEl = document.getElementById('doseNum');
+  let dStr = dose>=100 ? dose.toFixed(1) : dose>=10 ? dose.toFixed(2) : dose.toFixed(3);
+  dEl.textContent = dStr;
+
+  let color, alertLevel;
+  if (dose<0.001)      { color='#00e5ff'; alertLevel=0; }
+  else if (dose<0.1)   { color='#00ff41'; alertLevel=0; }
+  else if (dose<1)     { color='#aaff00'; alertLevel=1; }
+  else if (dose<3)     { color='#ffb300'; alertLevel=2; }
+  else if (dose<8)     { color='#ff6600'; alertLevel=3; }
+  else                 { color='#ff2020'; alertLevel=4; }
+
+  dEl.style.color = color;
+
+  // Level segments
+  for(let i=0;i<=4;i++){
+    document.getElementById('ls'+i).style.opacity = i<=alertLevel?'1':'0.15';
+  }
+
+  // Gauge (log scale)
+  const pct = Math.min(Math.log1p(dose*10)/Math.log1p(100)*100,100);
+  const gf = document.getElementById('gaugeFill');
+  gf.style.width = pct+'%'; gf.style.background=color; gf.style.boxShadow=`0 0 8px ${color}`;
+
+  // Alert dots
+  for(let i=0;i<=4;i++){
+    const d=document.getElementById('d'+i);
+    d.classList.toggle('on',i===alertLevel);
+    d.style.opacity=i<=alertLevel?'1':'0.2';
+    d.style.boxShadow=i===alertLevel?`0 0 10px currentColor`:'none';
+  }
+
+  // Flash
+  document.getElementById('flash').classList.toggle('on',alertLevel>=3);
+
+  // CPM (Cs-137: ~1 μSv/h ≈ 120 CPM for typical GM tube)
+  const cpm = Math.round(dose*1000*120 + Math.random()*10);
+  document.getElementById('cpmNum').textContent = cpm>9999?'>9999':cpm;
+  document.getElementById('cpmNum').style.color=color;
+  drawGeiger(cpm);
+
+  // Dist
+  document.getElementById('distNum').textContent = distM<1000?Math.round(distM):`${(distM/1000).toFixed(2)}k`;
+
+  // Wind factor display
+  const angleDiff = deltaAngle(bearingFromSrc, CFG.windDir);
+  const sigmaAng = (Math.max(CFG.sigma, CFG.sigma+distM*0.1)/distM)*(180/Math.PI);
+  const wf = Math.exp(-(angleDiff*angleDiff)/(2*sigmaAng*sigmaAng));
+  const upwind = isUpwind(bearingFromSrc, CFG.windDir);
+  const wfFinal = wf*(upwind?0.08:1.0)+0.05;
+  document.getElementById('windEffect').textContent = wfFinal.toFixed(2)+'×';
+
+  // Compass
+  drawCompass(bearingToSrc, distM, dose, CFG.windDir);
+  const cardName = ['北','東北','東','東南','南','西南','西','西北'];
+  const idx = Math.round(bearingToSrc/45)%8;
+  document.getElementById('bearingTxt').textContent=`射源方位: ${Math.round(bearingToSrc)}° (${cardName[idx]}) · ${upwind?'上風側↑':'下風側↓'}`;
+}
+
+// ============================================================
+// GPS
+// ============================================================
+function startGPS() {
+  if (!navigator.geolocation) { addLog('此裝置不支援 GPS','d'); return; }
+  document.getElementById('btnStart').disabled=true;
+  addLog('▶ 請求 GPS 授權...');
+  document.getElementById('gpsMsg').textContent='正在取得定位...';
+
+  watchId = navigator.geolocation.watchPosition(onPos, onErr, {
+    enableHighAccuracy:true, maximumAge:2000, timeout:15000
+  });
+}
+
+function onPos(pos) {
+  const {latitude:lat, longitude:lng, accuracy:acc} = pos.coords;
+  myPos = {lat,lng};
+
+  document.getElementById('myLat').textContent=lat.toFixed(6);
+  document.getElementById('myLng').textContent=lng.toFixed(6);
+  document.getElementById('myAcc').textContent=`${Math.round(acc)} m`;
+  document.getElementById('gpsTime').textContent=new Date().toTimeString().slice(0,8);
+  document.getElementById('gpsDot').className='gps-dot on';
+  document.getElementById('gpsMsg').textContent=`GPS 連接中 · 精度 ±${Math.round(acc)}m`;
+
+  const distM = haversine(lat,lng,CFG.srcLat,CFG.srcLng);
+  const bearingToSrc = bearing(lat,lng,CFG.srcLat,CFG.srcLng);
+  const bearingFromSrc = bearing(CFG.srcLat,CFG.srcLng,lat,lng);
+  const dose = calcDose(distM, bearingFromSrc);
+
+  // Cumulative
+  const now=Date.now();
+  if (lastUpdateMs) {
+    const dtH=(now-lastUpdateMs)/3600000;
+    cumDose+=dose*dtH;
+    document.getElementById('cumDoseNum').textContent=cumDose.toFixed(4);
+  }
+  lastUpdateMs=now;
+
+  updateUI(dose, distM, bearingToSrc, bearingFromSrc);
+
+  // Log
+  if (dose>3) addLog(`⚠ 高劑量 ${dose.toFixed(2)} mSv/h · ${Math.round(distM)}m`,'d');
+  else if (dose>0.5) addLog(`注意 ${dose.toFixed(3)} mSv/h · 距射源 ${Math.round(distM)}m`,'w');
+  else addLog(`${dose.toFixed(4)} mSv/h · 距射源 ${Math.round(distM)}m`);
+
+  // Found?
+  if (!foundSource && distM<CFG.findRadius) {
+    foundSource=true;
+    document.getElementById('foundInfo').innerHTML=
+      `距射源: ${Math.round(distM)} 公尺<br>劑量率: ${dose.toFixed(2)} mSv/h<br>座標: ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>核種: Cs-137 · 風向: ${CFG.windDir}°`;
+    document.getElementById('foundOverlay').classList.add('show');
+    addLog('☢ 射源定位成功！','d');
+  }
+}
+
+function onErr(e) {
+  const m={1:'GPS 授權被拒絕 — 請至設定允許位置存取',2:'GPS 訊號無法取得',3:'GPS 逾時'};
+  document.getElementById('gpsDot').className='gps-dot err';
+  document.getElementById('gpsMsg').textContent=m[e.code]||'GPS 錯誤';
+  document.getElementById('btnStart').disabled=false;
+  addLog(m[e.code]||'GPS 錯誤','d');
+}
+
+// ============================================================
+// LOG
+// ============================================================
+let logN=0;
+function addLog(msg,type='') {
+  const box=document.getElementById('logBox');
+  const ts=new Date().toTimeString().slice(0,8);
+  const d=document.createElement('div');
+  d.className='le'+(type?' '+type:'');
+  d.innerHTML=`<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+  if(++logN>80) box.firstChild.remove();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+drawWindCompass(CFG.windDir);
+drawCompass(135, 500, 0, CFG.windDir);
+drawGeiger(15);
+addLog(`模型: 高斯煙流 · Cs-137 0.662MeV · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
+addLog(`校準: ${CFG.refDist}m處=${CFG.refDose}mSv/h (下風側) Q_eff=${Q_eff.toFixed(1)}`);
+</script>
+</body>
+</html>
