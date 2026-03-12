@@ -386,12 +386,13 @@ let pollInterval = null;
 async function loadConfigFromSheet() {
   try {
     const data = await fetchGAS(SHEETS_API);
-    const scenario = data.scenario || 'E';
+    const scenario = data.scenario || 'A';
+    const isFirstLoad = lastUpdatedAt === '';
     const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
-    if (changed && lastUpdatedAt !== '') {
+    if (changed && !isFirstLoad) {
       showUpdateNotify(data.updatedAt, scenario);
     }
-    lastUpdatedAt = data.updatedAt || lastUpdatedAt;
+    if (data.updatedAt) lastUpdatedAt = data.updatedAt;
     applyScenario(scenario);
     return true;
   } catch(e) {
@@ -859,31 +860,15 @@ async function selectScenario(scenario) {
 }
 
 async function applyConfig() {
-  CFG.srcLat     = parseFloat(document.getElementById('srcLat').value);
-  CFG.srcLng     = parseFloat(document.getElementById('srcLng').value);
-  CFG.srcDose    = parseFloat(document.getElementById('srcDose').value);
-  CFG.refDist    = parseFloat(document.getElementById('refDist').value);
-  CFG.refDose    = parseFloat(document.getElementById('refDose').value);
-  CFG.findRadius = parseFloat(document.getElementById('findRadius').value);
-  CFG.windDir    = parseInt(document.getElementById('windDir').value);
-  CFG.windSpeed  = parseFloat(document.getElementById('windSpeed').value);
-  CFG.sigma      = parseFloat(document.getElementById('sigmaCtrl').value);
-  recalcQ();
-  foundSource = false;
-
   const btn = document.querySelector('#adminBody .btn.amber');
   if(btn){ btn.textContent='發布中...'; btn.disabled=true; }
 
-  const ok = await saveConfigToSheet({
-    srcLat:CFG.srcLat, srcLng:CFG.srcLng, srcDose:CFG.srcDose,
-    refDist:CFG.refDist, refDose:CFG.refDose, findRadius:CFG.findRadius,
-    windDir:CFG.windDir, windSpeed:CFG.windSpeed, sigma:CFG.sigma
-  }, currentScenario);
+  const ok = await saveConfigToSheet({}, currentScenario);
 
   if(btn){ btn.textContent = ok ? '✓ 已發布至雲端' : '✕ 發布失敗'; btn.disabled=false;
     setTimeout(()=>{ btn.textContent='✓ 套用並發布情境'; }, 2000);
   }
-  addLog(`情境已套用 — 射源(${CFG.srcLat.toFixed(5)},${CFG.srcLng.toFixed(5)}) 風向${CFG.windDir}°`,'w');
+  if(ok) addLog('✓ 情境 ' + currentScenario + ' 發布成功');
   document.getElementById('adminBody').classList.remove('open');
 }
 
