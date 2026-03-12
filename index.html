@@ -18,6 +18,9 @@
   --orange: #ff6600;
   --lime: #76ff03;
   --scanline: rgba(0,229,255,0.025);
+  --cold: #5bbcb8;
+  --warm: #e8923a;
+  --hot: #d94f2b;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -60,7 +63,7 @@ body::before {
   text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,229,255,0.3);
   animation: flicker 6s infinite;
 }
-.hdr .sub { font-size:9px; color:var(--green-dim); letter-spacing:3px; margin-top:5px; }
+.hdr .sub { font-size:12px; color:var(--green-dim); letter-spacing:3px; margin-top:5px; }
 @keyframes flicker { 0%,93%,100%{opacity:1} 94%{opacity:.7} 96%{opacity:.5} 98%{opacity:1} }
 
 /* PANEL */
@@ -78,7 +81,7 @@ body::before {
 }
 .ptitle {
   font-family:'Orbitron',sans-serif;
-  font-size:9px; letter-spacing:4px;
+  font-size:12px; letter-spacing:4px;
   color:var(--green-dim); margin-bottom:12px; text-transform:uppercase;
 }
 
@@ -92,7 +95,7 @@ body::before {
 }
 
 /* GPS STATUS */
-.gps-row { display:flex; align-items:center; gap:8px; font-size:11px; margin-bottom:8px; }
+.gps-row { display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px; }
 .gps-dot { width:10px;height:10px;border-radius:50%;background:var(--green-dim);flex-shrink:0; }
 .gps-dot.on { background:var(--lime); animation:blink 1s infinite; }
 .gps-dot.err { background:var(--red); }
@@ -100,9 +103,9 @@ body::before {
 
 .info-grid {
   display:grid; grid-template-columns:1fr 1fr; gap:6px;
-  font-size:10px; color:var(--green-dim);
+  font-size:13px; color:var(--green-dim);
 }
-.info-grid span { color:var(--green); font-size:12px; display:block; margin-top:2px; }
+.info-grid span { color:var(--green); font-size:15px; display:block; margin-top:2px; }
 
 /* DOSE BIG */
 .dose-big { text-align:center; padding:10px 0 6px; }
@@ -123,7 +126,7 @@ body::before {
   font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700;
   color:#00ffcc; text-shadow:0 0 15px #00ffcc;
 }
-.dist-lbl { font-size:9px; color:var(--green-dim); letter-spacing:2px; margin-top:2px; }
+.dist-lbl { font-size:13px; color:var(--green-dim); letter-spacing:2px; margin-top:2px; }
 
 /* GAUGE */
 .gauge-wrap { margin:10px 0; }
@@ -147,13 +150,13 @@ body::before {
 /* COMPASS */
 .compass-wrap { display:flex; justify-content:center; padding:8px 0; }
 #cvsCompass { width:170px; height:170px; display:block; }
-.bearing-txt { text-align:center; font-size:10px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
+.bearing-txt { text-align:center; font-size:14px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
 
 /* GEIGER */
 #cvsGeiger { width:100%; height:65px; display:block; background:#000; border:1px solid var(--green-dark); }
 .cpm-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:8px; }
 .cpm-num { font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700; color:#00ffcc; text-shadow:0 0 15px #00ffcc; }
-.cpm-lbl { font-size:9px; color:var(--green-dim); letter-spacing:2px; }
+.cpm-lbl { font-size:13px; color:var(--green-dim); letter-spacing:2px; }
 
 /* WIND CONTROL */
 .wind-wrap { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -198,7 +201,7 @@ input[type=range]::-webkit-slider-thumb {
 .btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
 /* LOG */
-.log-box { max-height:90px; overflow-y:auto; font-size:10px; color:var(--green-dim); line-height:2; }
+.log-box { max-height:90px; overflow-y:auto; font-size:13px; color:var(--green-dim); line-height:2; }
 .log-box::-webkit-scrollbar { width:3px; }
 .log-box::-webkit-scrollbar-thumb { background:var(--green-dim); }
 .le { border-bottom:1px solid rgba(0,229,255,.04); }
@@ -355,25 +358,33 @@ input[type=range]::-webkit-slider-thumb {
       <div class="dose-unit">mSv/h · MILLISIEVERT PER HOUR</div>
     </div>
 
+    <!-- Zone indicator -->
+    <div id="zoneDisplay" style="
+      text-align:center; margin:14px 0 6px;
+      font-family:'Orbitron',sans-serif; font-size:28px; font-weight:900;
+      letter-spacing:6px; transition:color .4s; text-shadow:0 0 20px currentColor;
+      color:var(--cold);">冷　區</div>
+    <div id="zoneDesc" style="text-align:center;font-size:11px;color:var(--green-dim);letter-spacing:2px;margin-bottom:10px;">
+      &lt; 0.5 μSv/h
+    </div>
     <div class="level-bar">
-      <div class="level-seg" style="background:#00ff41;" id="ls0"></div>
-      <div class="level-seg" style="background:#aaff00;" id="ls1"></div>
-      <div class="level-seg" style="background:#ffb300;" id="ls2"></div>
-      <div class="level-seg" style="background:#ff6600;" id="ls3"></div>
-      <div class="level-seg" style="background:#ff2020;" id="ls4"></div>
+      <div class="level-seg" style="background:var(--cold);flex:2;" id="ls0"></div>
+      <div class="level-seg" style="background:var(--warm);flex:2;" id="ls1"></div>
+      <div class="level-seg" style="background:var(--hot);flex:2;" id="ls2"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(0,229,255,.3);margin-top:4px;letter-spacing:1px;">
+      <span>冷區</span><span>0.5 μSv/h</span><span>暖區</span><span>100 μSv/h</span><span>熱區</span>
     </div>
 
     <div class="gauge-wrap">
-      <div class="gauge-lbls"><span>本底</span><span>0.1</span><span>1</span><span>5</span><span>10+mSv/h</span></div>
+      <div class="gauge-lbls"><span>本底</span><span>0.5μSv/h</span><span>冷→暖</span><span>100μSv/h</span><span>暖→熱</span></div>
       <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div></div>
     </div>
 
-    <div class="alert-row">
-      <div class="adot" id="d0" style="border-color:#00ff41;color:#00ff41;">正常</div>
-      <div class="adot" id="d1" style="border-color:#aaff00;color:#aaff00;">注意</div>
-      <div class="adot" id="d2" style="border-color:#ffb300;color:#ffb300;">警戒</div>
-      <div class="adot" id="d3" style="border-color:#ff6600;color:#ff6600;">危險</div>
-      <div class="adot" id="d4" style="border-color:#ff2020;color:#ff2020;">緊急</div>
+    <div class="alert-row" style="margin-top:12px;">
+      <div class="adot" id="d0" style="border-color:var(--cold);color:var(--cold);font-size:13px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">冷區</div>
+      <div class="adot" id="d1" style="border-color:var(--warm);color:var(--warm);font-size:13px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">暖區</div>
+      <div class="adot" id="d2" style="border-color:var(--hot);color:var(--hot);font-size:13px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">熱區</div>
     </div>
 
     <div class="dist-row">
@@ -768,36 +779,47 @@ function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
   let dStr = dose>=100 ? dose.toFixed(1) : dose>=10 ? dose.toFixed(2) : dose.toFixed(3);
   dEl.textContent = dStr;
 
-  let color, alertLevel;
-  if (dose<0.001)      { color='#00e5ff'; alertLevel=0; }
-  else if (dose<0.1)   { color='#00ff41'; alertLevel=0; }
-  else if (dose<1)     { color='#aaff00'; alertLevel=1; }
-  else if (dose<3)     { color='#ffb300'; alertLevel=2; }
-  else if (dose<8)     { color='#ff6600'; alertLevel=3; }
-  else                 { color='#ff2020'; alertLevel=4; }
+  // Zone: dose in mSv/h, thresholds: 0.5 μSv/h = 0.0005 mSv/h, 100 μSv/h = 0.1 mSv/h
+  // dose unit here is mSv/h
+  let color, alertLevel, zoneName, zoneDesc;
+  if (dose < 0.0005) {
+    color='#5bbcb8'; alertLevel=0; zoneName='冷　區'; zoneDesc='&lt; 0.5 μSv/h';
+  } else if (dose < 0.1) {
+    color='#e8923a'; alertLevel=1; zoneName='暖　區'; zoneDesc='0.5 ~ 100 μSv/h';
+  } else {
+    color='#d94f2b'; alertLevel=2; zoneName='熱　區'; zoneDesc='≥ 100 μSv/h';
+  }
 
   dEl.style.color = color;
 
-  // Level segments
-  for(let i=0;i<=4;i++){
-    document.getElementById('ls'+i).style.opacity = i<=alertLevel?'1':'0.15';
+  // Zone display
+  const zd = document.getElementById('zoneDisplay');
+  const zdesc = document.getElementById('zoneDesc');
+  if(zd){ zd.textContent=zoneName; zd.style.color=color; }
+  if(zdesc){ zdesc.innerHTML=zoneDesc; }
+
+  // Level segments (3 zones)
+  for(let i=0;i<=2;i++){
+    const seg=document.getElementById('ls'+i);
+    if(seg) seg.style.opacity = i<=alertLevel?'1':'0.15';
   }
 
-  // Gauge (log scale)
-  const pct = Math.min(Math.log1p(dose*10)/Math.log1p(100)*100,100);
+  // Gauge (log scale across 3 zones)
+  const pct = Math.min(Math.log1p(dose*10000)/Math.log1p(1000)*100,100);
   const gf = document.getElementById('gaugeFill');
   gf.style.width = pct+'%'; gf.style.background=color; gf.style.boxShadow=`0 0 8px ${color}`;
 
-  // Alert dots
-  for(let i=0;i<=4;i++){
+  // Alert dots (3)
+  for(let i=0;i<=2;i++){
     const d=document.getElementById('d'+i);
+    if(!d) continue;
     d.classList.toggle('on',i===alertLevel);
-    d.style.opacity=i<=alertLevel?'1':'0.2';
-    d.style.boxShadow=i===alertLevel?`0 0 10px currentColor`:'none';
+    d.style.opacity=i===alertLevel?'1':'0.2';
+    d.style.boxShadow=i===alertLevel?`0 0 14px currentColor`:'none';
   }
 
-  // Flash
-  document.getElementById('flash').classList.toggle('on',alertLevel>=3);
+  // Flash only in hot zone
+  document.getElementById('flash').classList.toggle('on',alertLevel>=2);
 
   // CPM (Cs-137: ~1 μSv/h ≈ 120 CPM for typical GM tube)
   const cpm = Math.round(dose*1000*120 + Math.random()*10);
