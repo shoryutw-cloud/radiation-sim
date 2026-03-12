@@ -368,28 +368,18 @@ const SHEETS_API = 'https://script.google.com/macros/s/AKfycbx5JrgEm106AsjQlvfwd
 let lastUpdatedAt = '';
 let pollInterval = null;
 
-// Load config from Google Sheets
+// Load active config from Google Sheets
 async function loadConfigFromSheet() {
   try {
-    const res = await fetch(SHEETS_API + '?t=' + Date.now());
+    const res = await fetch(SHEETS_API + '?action=getActive&t=' + Date.now());
     const data = await res.json();
     const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
     if (changed && lastUpdatedAt !== '') {
-      showUpdateNotify(data.updatedAt);
+      showUpdateNotify(data.updatedAt, data.scenario);
     }
     lastUpdatedAt = data.updatedAt || lastUpdatedAt;
-    // Apply to CFG
-    CFG.srcLat     = data.srcLat;
-    CFG.srcLng     = data.srcLng;
-    CFG.windDir    = data.windDir;
-    CFG.windSpeed  = data.windSpeed;
-    CFG.sigma      = data.sigma;
-    CFG.refDist    = data.refDist;
-    CFG.refDose    = data.refDose;
-    CFG.findRadius = data.findRadius;
-    recalcQ();
-    syncAdminUI();
-    addLog('✓ 情境已從雲端載入 · ' + (data.updatedAt||''));
+    applyScenarioData(data);
+    addLog('✓ 情境' + (data.scenario||'') + ' 已從雲端載入 · ' + (data.updatedAt||''));
     return true;
   } catch(e) {
     addLog('⚠ 無法讀取雲端情境，使用預設值', 'w');
@@ -397,31 +387,55 @@ async function loadConfigFromSheet() {
   }
 }
 
+// Apply scenario data to CFG
+function applyScenarioData(data) {
+  CFG.srcLat    = data.srcLat;
+  CFG.srcLng    = data.srcLng;
+  CFG.windDir   = data.windDir;
+  CFG.windSpeed = data.windSpeed;
+  CFG.sigma     = data.sigma;
+  CFG.refDist   = data.refDist;
+  CFG.refDose   = data.refDose;
+  recalcQ();
+  syncAdminUI();
+}
+
+// Load all 4 scenarios from sheet into panel
+async function loadAllScenarios() {
+  try {
+    const res = await fetch(SHEETS_API + '?t=' + Date.now());
+    const data = await res.json();
+    return data; // {A:{...}, B:{...}, C:{...}, D:{...}}
+  } catch(e) {
+    addLog('⚠ 無法讀取情境列表', 'w');
+    return null;
+  }
+}
+
 // Save config to Google Sheets via GET params (avoids CORS)
-async function saveConfigToSheet(cfg) {
+async function saveConfigToSheet(cfg, scenario) {
   try {
     const params = new URLSearchParams({
-      action:     'save',
-      srcLat:     cfg.srcLat,
-      srcLng:     cfg.srcLng,
-      windDir:    cfg.windDir,
-      windSpeed:  cfg.windSpeed,
-      sigma:      cfg.sigma,
-      refDist:    cfg.refDist,
-      refDose:    cfg.refDose,
-      findRadius: cfg.findRadius
+      action:    'save',
+      scenario:  scenario || 'D',
+      srcLat:    cfg.srcLat,
+      srcLng:    cfg.srcLng,
+      windDir:   cfg.windDir,
+      windSpeed: cfg.windSpeed,
+      sigma:     cfg.sigma,
+      refDist:   cfg.refDist,
+      refDose:   cfg.refDose
     });
     const url = SHEETS_API + '?' + params.toString();
-    addLog('發布中... ' + url.slice(0,60));
+    addLog('發布情境D中...');
     const res = await fetch(url, {redirect: 'follow'});
     const text = await res.text();
-    addLog('回應: ' + text.slice(0,80));
     const data = JSON.parse(text);
     if (data.success) {
-      addLog('✓ 情境已發布至雲端');
+      addLog('✓ 情境D 已發布至雲端');
       return true;
     } else {
-      addLog('✕ 發布回應異常: ' + text.slice(0,60), 'd');
+      addLog('✕ 發布失敗: ' + text.slice(0,60), 'd');
     }
   } catch(e) {
     addLog('✕ 發布失敗: ' + e.message, 'd');
@@ -430,9 +444,9 @@ async function saveConfigToSheet(cfg) {
 }
 
 // Show notification banner when config changes
-function showUpdateNotify(updatedAt) {
+function showUpdateNotify(updatedAt, scenario) {
   const banner = document.getElementById('updateNotify');
-  document.getElementById('notifyTime').textContent = updatedAt;
+  document.getElementById('notifyTime').textContent = '情境' + (scenario||'') + ' · ' + updatedAt;
   banner.style.display = 'flex';
 }
 
@@ -763,6 +777,49 @@ function lockAdmin() {
   addLog('情境設定面板已鎖定');
 }
 
+// Currently selected scenario
+let currentScenario = 'A';
+
+// Select and preview a scenario from sheet
+async function selectScenario(scenario) {
+  // Update button styles
+  ['A','B','C','D'].forEach(s => {
+    const btn = document.getElementById('scnBtn' + s);
+    if(btn) {
+      btn.style.borderColor = s === scenario ? 'var(--green)' : '';
+      btn.style.background  = s === scenario ? 'rgba(0,229,255,0.15)' : '';
+    }
+  });
+
+  currentScenario = scenario;
+  document.getElementById('scnStatus').textContent = '已選擇情境 ' + scenario + (scenario==='D'?' (自訂)':'') + ' — 請按「套用並發布」生效';
+
+  if (scenario === 'D') {
+    // D is custom, just highlight, don't overwrite fields
+    return;
+  }
+
+  // Load scenario params from sheet
+  addLog('讀取情境 ' + scenario + ' 參數...');
+  const all = await loadAllScenarios();
+  if (all && all[scenario]) {
+    const d = all[scenario];
+    document.getElementById('srcLat').value    = d.srcLat;
+    document.getElementById('srcLng').value    = d.srcLng;
+    document.getElementById('refDist').value   = d.refDist;
+    document.getElementById('refDose').value   = d.refDose;
+    document.getElementById('windDir').value   = d.windDir;
+    document.getElementById('windSpeed').value = d.windSpeed;
+    document.getElementById('sigmaCtrl').value = d.sigma;
+    onWindChange();
+    onWindSpeedChange();
+    onSigmaChange();
+    addLog('✓ 情境 ' + scenario + ' 參數已載入，按發布生效');
+  } else {
+    addLog('⚠ 無法讀取情境 ' + scenario + ' 參數', 'w');
+  }
+}
+
 async function applyConfig() {
   CFG.srcLat     = parseFloat(document.getElementById('srcLat').value);
   CFG.srcLng     = parseFloat(document.getElementById('srcLng').value);
@@ -783,7 +840,7 @@ async function applyConfig() {
     srcLat:CFG.srcLat, srcLng:CFG.srcLng, srcDose:CFG.srcDose,
     refDist:CFG.refDist, refDose:CFG.refDose, findRadius:CFG.findRadius,
     windDir:CFG.windDir, windSpeed:CFG.windSpeed, sigma:CFG.sigma
-  });
+  }, currentScenario);
 
   if(btn){ btn.textContent = ok ? '✓ 已發布至雲端' : '✕ 發布失敗'; btn.disabled=false;
     setTimeout(()=>{ btn.textContent='✓ 套用並發布情境'; }, 2000);
@@ -1025,6 +1082,17 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     <div class="admin-body" id="adminBody">
       <div class="admin-badge">INSTRUCTOR MODE &nbsp;·&nbsp; <span style="cursor:pointer;text-decoration:underline;" onclick="lockAdmin()">🔒 鎖定</span></div>
+
+      <!-- Scenario selector -->
+      <div class="ptitle" style="margin-bottom:8px;">▶ 選擇情境</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <button class="btn" id="scnBtnA" onclick="selectScenario('A')">情境 A</button>
+        <button class="btn" id="scnBtnB" onclick="selectScenario('B')">情境 B</button>
+        <button class="btn" id="scnBtnC" onclick="selectScenario('C')">情境 C</button>
+        <button class="btn" id="scnBtnD" onclick="selectScenario('D')">情境 D（自訂）</button>
+      </div>
+      <div id="scnStatus" style="font-size:14px;color:var(--amber);letter-spacing:2px;margin-bottom:10px;min-height:20px;"></div>
+
       <div class="src-grid">
         <div class="src-field">
           <label>射源緯度 LAT</label>
