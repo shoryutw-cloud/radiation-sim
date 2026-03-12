@@ -378,7 +378,7 @@ input[type=range]::-webkit-slider-thumb {
 // ============================================================
 // Google Sheets API
 // ============================================================
-const SHEETS_API = 'https://script.google.com/macros/s/AKfycbxn_8i2OCQ-QPB6nxDfaeAaJDvkZpORRZk5WpdqiI12BqKNb5f_1c20Q9kTFnBCo3jpRA/exec';
+const SHEETS_API = 'https://odd-paper-ab16.shoryu-tw.workers.dev';
 let lastUpdatedAt = '';
 let pollInterval = null;
 
@@ -444,22 +444,16 @@ function applyScenarioData(data) {
   if(lbl && data.scenario) lbl.textContent = data.scenario;
 }
 
-// Fetch GAS data using no-redirect fetch trick
+// Fetch via Cloudflare Worker (has CORS header)
 async function fetchGAS(url) {
-  try {
-    // GAS redirects to a different URL - we need to follow redirects
-    // Use fetch with redirect:follow which works cross-origin for GAS
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-    });
-    const text = await res.text();
-    // Strip JSONP wrapper if present
-    const match = text.match(/[^(]+\(([\s\S]+)\)\s*;?\s*$/);
-    return JSON.parse(match ? match[1] : text);
-  } catch(e) {
-    throw new Error(e.message);
-  }
+  const res = await fetch(url, {
+    method: 'GET',
+    mode: 'cors',
+    cache: 'no-cache',
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  return JSON.parse(text);
 }
 
 const fetchJSONP = fetchGAS;
