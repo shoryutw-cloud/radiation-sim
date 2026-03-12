@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>☢ Cs-137 髒彈擴散模擬器</title>
+<title>☢ 輻射彈爆炸污染擴散模擬</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -63,7 +63,7 @@ body::before {
   text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,229,255,0.3);
   animation: flicker 6s infinite;
 }
-.hdr .sub { font-size:12px; color:var(--green-dim); letter-spacing:3px; margin-top:5px; }
+.hdr .sub { font-size:24px; color:var(--green-dim); letter-spacing:3px; margin-top:5px; }
 @keyframes flicker { 0%,93%,100%{opacity:1} 94%{opacity:.7} 96%{opacity:.5} 98%{opacity:1} }
 
 /* PANEL */
@@ -81,7 +81,7 @@ body::before {
 }
 .ptitle {
   font-family:'Orbitron',sans-serif;
-  font-size:12px; letter-spacing:4px;
+  font-size:24px; letter-spacing:4px;
   color:var(--green-dim); margin-bottom:12px; text-transform:uppercase;
 }
 
@@ -90,12 +90,12 @@ body::before {
   display:inline-block;
   border:1px solid var(--amber);
   color:var(--amber);
-  font-size:9px; letter-spacing:3px;
+  font-size:24px; letter-spacing:3px;
   padding:2px 8px; margin-bottom:10px;
 }
 
 /* GPS STATUS */
-.gps-row { display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px; }
+.gps-row { display:flex; align-items:center; gap:8px; font-size:18px; margin-bottom:8px; }
 .gps-dot { width:10px;height:10px;border-radius:50%;background:var(--green-dim);flex-shrink:0; }
 .gps-dot.on { background:var(--lime); animation:blink 1s infinite; }
 .gps-dot.err { background:var(--red); }
@@ -103,9 +103,9 @@ body::before {
 
 .info-grid {
   display:grid; grid-template-columns:1fr 1fr; gap:6px;
-  font-size:13px; color:var(--green-dim);
+  font-size:17px; color:var(--green-dim);
 }
-.info-grid span { color:var(--green); font-size:15px; display:block; margin-top:2px; }
+.info-grid span { color:var(--green); font-size:19px; display:block; margin-top:2px; }
 
 /* DOSE BIG */
 .dose-big { text-align:center; padding:10px 0 6px; }
@@ -115,7 +115,7 @@ body::before {
   transition: color .4s;
   text-shadow: 0 0 40px currentColor;
 }
-.dose-unit { font-size:11px; color:var(--green-dim); letter-spacing:3px; margin-top:4px; }
+.dose-unit { font-size:24px; color:var(--green-dim); letter-spacing:3px; margin-top:4px; }
 
 .dist-row {
   display:flex; justify-content:space-between; align-items:center;
@@ -123,14 +123,14 @@ body::before {
 }
 .dist-block { text-align:center; }
 .dist-num {
-  font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700;
+  font-family:'Orbitron',sans-serif; font-size:30px; font-weight:700;
   color:#00ffcc; text-shadow:0 0 15px #00ffcc;
 }
-.dist-lbl { font-size:13px; color:var(--green-dim); letter-spacing:2px; margin-top:2px; }
+.dist-lbl { font-size:17px; color:var(--green-dim); letter-spacing:2px; margin-top:2px; }
 
 /* GAUGE */
 .gauge-wrap { margin:10px 0; }
-.gauge-lbls { display:flex; justify-content:space-between; font-size:9px; color:rgba(0,229,255,.3); margin-bottom:4px; }
+.gauge-lbls { display:flex; justify-content:space-between; font-size:24px; color:rgba(0,229,255,.3); margin-bottom:4px; }
 .gauge-track {
   height:20px; background:var(--green-dark);
   border:1px solid rgba(0,229,255,.15); overflow:hidden; position:relative;
@@ -142,7 +142,7 @@ body::before {
 .adot {
   flex:1; height:26px; border:1px solid; display:flex;
   align-items:center; justify-content:center;
-  font-size:9px; letter-spacing:1px; transition:all .3s; opacity:.2;
+  font-size:24px; letter-spacing:1px; transition:all .3s; opacity:.2;
 }
 .adot.on { opacity:1; animation:pdot .8s infinite; }
 @keyframes pdot { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 8px 2px transparent} }
@@ -150,7 +150,7 @@ body::before {
 /* COMPASS */
 .compass-wrap { display:flex; justify-content:center; padding:8px 0; }
 #cvsCompass { width:170px; height:170px; display:block; }
-.bearing-txt { text-align:center; font-size:14px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
+.bearing-txt { text-align:center; font-size:18px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
 
 /* GEIGER */
 
@@ -158,8 +158,8 @@ body::before {
 .wind-wrap { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .wind-compass { position:relative; width:80px; height:80px; flex-shrink:0; }
 #cvsWind { width:80px; height:80px; display:block; }
-.wind-info { flex:1; font-size:11px; }
-.wind-info label { color:var(--green-dim); font-size:10px; letter-spacing:2px; display:block; margin-bottom:6px; }
+.wind-info { flex:1; font-size:24px; }
+.wind-info label { color:var(--green-dim); font-size:24px; letter-spacing:2px; display:block; margin-bottom:6px; }
 input[type=range] {
   -webkit-appearance:none; width:100%; height:4px;
   background:var(--green-dark); outline:none; border:1px solid rgba(0,229,255,.2);
@@ -170,17 +170,17 @@ input[type=range]::-webkit-slider-thumb {
 
 /* SOURCE CONFIG */
 .src-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
-.src-field label { font-size:9px; color:var(--green-dim); letter-spacing:2px; display:block; margin-bottom:4px; }
+.src-field label { font-size:24px; color:var(--green-dim); letter-spacing:2px; display:block; margin-bottom:4px; }
 .src-field input[type=text], .src-field input[type=number] {
   width:100%; background:#000; border:1px solid var(--green-dark);
-  color:var(--green); font-family:'Share Tech Mono',monospace; font-size:12px;
+  color:var(--green); font-family:'Share Tech Mono',monospace; font-size:24px;
   padding:6px 8px; outline:none;
 }
 .src-field input:focus { border-color:var(--green-dim); }
 
 /* BUTTONS */
 .btn {
-  font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:3px;
+  font-family:'Share Tech Mono',monospace; font-size:24px; letter-spacing:3px;
   padding:12px; border:1px solid var(--green-dim); background:transparent;
   color:var(--green); cursor:pointer; width:100%; transition:all .2s;
   text-transform:uppercase; position:relative; overflow:hidden;
@@ -197,7 +197,7 @@ input[type=range]::-webkit-slider-thumb {
 .btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
 /* LOG */
-.log-box { max-height:90px; overflow-y:auto; font-size:13px; color:var(--green-dim); line-height:2; }
+.log-box { max-height:90px; overflow-y:auto; font-size:17px; color:var(--green-dim); line-height:2; }
 .log-box::-webkit-scrollbar { width:3px; }
 .log-box::-webkit-scrollbar-thumb { background:var(--green-dim); }
 .le { border-bottom:1px solid rgba(0,229,255,.04); }
@@ -217,8 +217,8 @@ input[type=range]::-webkit-slider-thumb {
   border:2px solid var(--red); background:#000; padding:28px 22px; text-align:center;
   max-width:320px; box-shadow:0 0 60px rgba(255,32,32,.4);
 }
-.found-box h2 { font-family:'Orbitron',sans-serif; font-size:20px; color:var(--red); text-shadow:0 0 20px var(--red); letter-spacing:3px; animation:flicker 1s infinite; }
-.found-box p { color:var(--amber); margin-top:10px; font-size:11px; letter-spacing:2px; line-height:2.2; }
+.found-box h2 { font-family:'Orbitron',sans-serif; font-size:24px; color:var(--red); text-shadow:0 0 20px var(--red); letter-spacing:3px; animation:flicker 1s infinite; }
+.found-box p { color:var(--amber); margin-top:10px; font-size:24px; letter-spacing:2px; line-height:2.2; }
 
 /* DOSE LEVEL INDICATOR */
 .level-bar {
@@ -231,7 +231,7 @@ input[type=range]::-webkit-slider-thumb {
 
 /* accordion for admin */
 .admin-toggle {
-  font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:3px;
+  font-family:'Share Tech Mono',monospace; font-size:24px; letter-spacing:3px;
   color:var(--amber); background:transparent; border:1px solid rgba(255,179,0,.3);
   padding:6px 12px; cursor:pointer; width:100%; text-align:left; margin-bottom:0;
 }
@@ -243,6 +243,24 @@ input[type=range]::-webkit-slider-thumb {
 
 <div class="flash" id="flash"></div>
 
+<!-- Update notification banner -->
+<div id="updateNotify" style="
+  display:none; position:fixed; top:0; left:0; right:0; z-index:3000;
+  background:#000; border-bottom:2px solid var(--amber);
+  padding:14px 16px; align-items:center; justify-content:space-between; gap:12px;
+  box-shadow: 0 4px 20px rgba(255,179,0,0.3);">
+  <div style="font-family:'Share Tech Mono',monospace;">
+    <div style="color:var(--amber);font-size:16px;letter-spacing:2px;">⚠ 情境已更新</div>
+    <div style="color:rgba(255,179,0,0.6);font-size:14px;margin-top:4px;">更新時間: <span id="notifyTime"></span></div>
+  </div>
+  <button onclick="location.reload()" style="
+    font-family:'Share Tech Mono',monospace; font-size:16px; letter-spacing:2px;
+    padding:10px 18px; border:1px solid var(--amber); background:var(--amber);
+    color:#000; cursor:pointer; white-space:nowrap; flex-shrink:0;">
+    立即重新載入
+  </button>
+</div>
+
 <div class="found-overlay" id="foundOverlay">
   <div class="found-box">
     <h2>☢ 射源定位成功</h2>
@@ -253,8 +271,7 @@ input[type=range]::-webkit-slider-thumb {
 
 <div class="wrap">
   <div class="hdr">
-    <h1>☢ Cs-137 DIRTY BOMB SIM</h1>
-    <div class="sub">髒彈擴散 · 高斯煙流模型 · GPS 即時追蹤</div>
+    <h1>☢ 輻射彈爆炸污染擴散模擬</h1>
   </div>
 
   <!-- SCENARIO CONFIG -->
@@ -262,17 +279,17 @@ input[type=range]::-webkit-slider-thumb {
     <button class="admin-toggle" onclick="toggleAdmin()">⚙ 情境設定面板 ▾</button>
     <!-- Password modal -->
     <div id="pwModal" style="display:none;margin-top:12px;">
-      <div style="font-size:10px;color:var(--amber);letter-spacing:3px;margin-bottom:8px;">🔒 請輸入密碼解鎖設定</div>
+      <div style="font-size:24px;color:var(--amber);letter-spacing:3px;margin-bottom:8px;">🔒 請輸入密碼解鎖設定</div>
       <div style="display:flex;gap:8px;">
         <input type="password" id="pwInput" maxlength="10"
           style="flex:1;background:#000;border:1px solid var(--amber);color:var(--amber);
-                 font-family:'Share Tech Mono',monospace;font-size:20px;padding:8px;
+                 font-family:'Share Tech Mono',monospace;font-size:24px;padding:8px;
                  letter-spacing:6px;outline:none;text-align:center;"
           placeholder="·····"
           onkeydown="if(event.key==='Enter')checkPw()">
-        <button class="btn amber" style="width:70px;padding:8px;font-size:11px;" onclick="checkPw()">確認</button>
+        <button class="btn amber" style="width:70px;padding:8px;font-size:24px;" onclick="checkPw()">確認</button>
       </div>
-      <div id="pwError" style="display:none;color:var(--red);font-size:10px;letter-spacing:2px;margin-top:6px;">✕ 密碼錯誤，請重試</div>
+      <div id="pwError" style="display:none;color:var(--red);font-size:24px;letter-spacing:2px;margin-top:6px;">✕ 密碼錯誤，請重試</div>
     </div>
     <div class="admin-body" id="adminBody">
       <div class="admin-badge">INSTRUCTOR MODE &nbsp;·&nbsp; <span style="cursor:pointer;text-decoration:underline;" onclick="lockAdmin()">🔒 鎖定</span></div>
@@ -323,7 +340,7 @@ input[type=range]::-webkit-slider-thumb {
         </div>
       </div>
       <div style="margin-top:10px;">
-        <button class="btn amber" onclick="applyConfig()">✓ 套用設定</button>
+        <button class="btn amber" onclick="applyConfig()">✓ 套用並發布情境</button>
       </div>
       <div style="margin-top:14px;">
         <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
@@ -363,10 +380,10 @@ input[type=range]::-webkit-slider-thumb {
     <!-- Zone indicator -->
     <div id="zoneDisplay" style="
       text-align:center; margin:14px 0 6px;
-      font-family:'Orbitron',sans-serif; font-size:28px; font-weight:900;
+      font-family:'Orbitron',sans-serif; font-size:32px; font-weight:900;
       letter-spacing:6px; transition:color .4s; text-shadow:0 0 20px currentColor;
       color:var(--cold);">冷　區</div>
-    <div id="zoneDesc" style="text-align:center;font-size:11px;color:var(--green-dim);letter-spacing:2px;margin-bottom:10px;">
+    <div id="zoneDesc" style="text-align:center;font-size:24px;color:var(--green-dim);letter-spacing:2px;margin-bottom:10px;">
       &lt; 0.5 μSv/h
     </div>
     <div class="level-bar">
@@ -374,7 +391,7 @@ input[type=range]::-webkit-slider-thumb {
       <div class="level-seg" style="background:var(--warm);flex:2;" id="ls1"></div>
       <div class="level-seg" style="background:var(--hot);flex:2;" id="ls2"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(0,229,255,.3);margin-top:4px;letter-spacing:1px;">
+    <div style="display:flex;justify-content:space-between;font-size:24px;color:rgba(0,229,255,.3);margin-top:4px;letter-spacing:1px;">
       <span>冷區</span><span>0.5 μSv/h</span><span>暖區</span><span>100 μSv/h</span><span>熱區</span>
     </div>
 
@@ -384,9 +401,9 @@ input[type=range]::-webkit-slider-thumb {
     </div>
 
     <div class="alert-row" style="margin-top:12px;">
-      <div class="adot" id="d0" style="border-color:var(--cold);color:var(--cold);font-size:13px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">冷區</div>
-      <div class="adot" id="d1" style="border-color:var(--warm);color:var(--warm);font-size:13px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">暖區</div>
-      <div class="adot" id="d2" style="border-color:var(--hot);color:var(--hot);font-size:13px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">熱區</div>
+      <div class="adot" id="d0" style="border-color:var(--cold);color:var(--cold);font-size:17px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">冷區</div>
+      <div class="adot" id="d1" style="border-color:var(--warm);color:var(--warm);font-size:17px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">暖區</div>
+      <div class="adot" id="d2" style="border-color:var(--hot);color:var(--hot);font-size:17px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">熱區</div>
     </div>
 
     <div class="dist-row">
@@ -395,7 +412,7 @@ input[type=range]::-webkit-slider-thumb {
         <div class="dist-lbl">距射源 (公尺)</div>
       </div>
       <div class="dist-block">
-        <div class="dist-num" id="cumDoseNum" style="font-size:20px;">0.000</div>
+        <div class="dist-num" id="cumDoseNum" style="font-size:24px;">0.000</div>
         <div class="dist-lbl">累積劑量 mSv</div>
       </div>
 
@@ -418,7 +435,93 @@ input[type=range]::-webkit-slider-thumb {
 
 <script>
 // ============================================================
-// CONFIG (defaults — overridden by admin panel)
+// Google Sheets API
+// ============================================================
+const SHEETS_API = 'https://script.google.com/macros/s/AKfycbx5JrgEm106AsjQlvfwdXZZLZEQDwubFVyzQCpl-9tceaucpCnFN0NuXxwQ4HLNh392tQ/exec';
+let lastUpdatedAt = '';
+let pollInterval = null;
+
+// Load config from Google Sheets
+async function loadConfigFromSheet() {
+  try {
+    const res = await fetch(SHEETS_API + '?t=' + Date.now());
+    const data = await res.json();
+    const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
+    if (changed && lastUpdatedAt !== '') {
+      showUpdateNotify(data.updatedAt);
+    }
+    lastUpdatedAt = data.updatedAt || lastUpdatedAt;
+    // Apply to CFG
+    CFG.srcLat     = data.srcLat;
+    CFG.srcLng     = data.srcLng;
+    CFG.windDir    = data.windDir;
+    CFG.windSpeed  = data.windSpeed;
+    CFG.sigma      = data.sigma;
+    CFG.refDist    = data.refDist;
+    CFG.refDose    = data.refDose;
+    CFG.findRadius = data.findRadius;
+    recalcQ();
+    syncAdminUI();
+    addLog('✓ 情境已從雲端載入 · ' + (data.updatedAt||''));
+    return true;
+  } catch(e) {
+    addLog('⚠ 無法讀取雲端情境，使用預設值', 'w');
+    return false;
+  }
+}
+
+// Save config to Google Sheets
+async function saveConfigToSheet(cfg) {
+  try {
+    const res = await fetch(SHEETS_API, {
+      method: 'POST',
+      body: JSON.stringify(cfg)
+    });
+    const data = await res.json();
+    if (data.success) {
+      lastUpdatedAt = data.updatedAt;
+      addLog('✓ 情境已發布至雲端 · ' + data.updatedAt);
+      return true;
+    }
+  } catch(e) {
+    addLog('✕ 發布失敗: ' + e.message, 'd');
+  }
+  return false;
+}
+
+// Show notification banner when config changes
+function showUpdateNotify(updatedAt) {
+  const banner = document.getElementById('updateNotify');
+  document.getElementById('notifyTime').textContent = updatedAt;
+  banner.style.display = 'flex';
+}
+
+// Sync admin UI inputs from CFG
+function syncAdminUI() {
+  document.getElementById('srcLat').value    = CFG.srcLat;
+  document.getElementById('srcLng').value    = CFG.srcLng;
+  document.getElementById('srcDose').value   = CFG.srcDose;
+  document.getElementById('refDist').value   = CFG.refDist;
+  document.getElementById('refDose').value   = CFG.refDose;
+  document.getElementById('findRadius').value= CFG.findRadius;
+  document.getElementById('windDir').value   = CFG.windDir;
+  document.getElementById('windSpeed').value = CFG.windSpeed;
+  document.getElementById('sigmaCtrl').value = CFG.sigma;
+  onWindChange();
+  onWindSpeedChange();
+  onSigmaChange();
+}
+
+// Start polling every 30 seconds
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(() => {
+    loadConfigFromSheet();
+  }, 30000);
+}
+
+// ============================================================
+// CONFIG (defaults — overridden by Google Sheets)
 // ============================================================
 let CFG = {
   srcLat: 25.003327,
@@ -712,19 +815,32 @@ function lockAdmin() {
   addLog('情境設定面板已鎖定');
 }
 
-function applyConfig() {
-  CFG.srcLat = parseFloat(document.getElementById('srcLat').value);
-  CFG.srcLng = parseFloat(document.getElementById('srcLng').value);
-  CFG.srcDose = parseFloat(document.getElementById('srcDose').value);
-  CFG.refDist = parseFloat(document.getElementById('refDist').value);
-  CFG.refDose = parseFloat(document.getElementById('refDose').value);
+async function applyConfig() {
+  CFG.srcLat     = parseFloat(document.getElementById('srcLat').value);
+  CFG.srcLng     = parseFloat(document.getElementById('srcLng').value);
+  CFG.srcDose    = parseFloat(document.getElementById('srcDose').value);
+  CFG.refDist    = parseFloat(document.getElementById('refDist').value);
+  CFG.refDose    = parseFloat(document.getElementById('refDose').value);
   CFG.findRadius = parseFloat(document.getElementById('findRadius').value);
-  CFG.windDir = parseInt(document.getElementById('windDir').value);
-  CFG.windSpeed = parseFloat(document.getElementById('windSpeed').value);
-  CFG.sigma = parseFloat(document.getElementById('sigmaCtrl').value);
+  CFG.windDir    = parseInt(document.getElementById('windDir').value);
+  CFG.windSpeed  = parseFloat(document.getElementById('windSpeed').value);
+  CFG.sigma      = parseFloat(document.getElementById('sigmaCtrl').value);
   recalcQ();
   foundSource = false;
-  addLog(`✓ 設定已套用 — 射源(${CFG.srcLat.toFixed(5)},${CFG.srcLng.toFixed(5)}) 風向${CFG.windDir}° σ=${CFG.sigma}m`,'w');
+
+  const btn = document.querySelector('#adminBody .btn.amber');
+  if(btn){ btn.textContent='發布中...'; btn.disabled=true; }
+
+  const ok = await saveConfigToSheet({
+    srcLat:CFG.srcLat, srcLng:CFG.srcLng, srcDose:CFG.srcDose,
+    refDist:CFG.refDist, refDose:CFG.refDose, findRadius:CFG.findRadius,
+    windDir:CFG.windDir, windSpeed:CFG.windSpeed, sigma:CFG.sigma
+  });
+
+  if(btn){ btn.textContent = ok ? '✓ 已發布至雲端' : '✕ 發布失敗'; btn.disabled=false;
+    setTimeout(()=>{ btn.textContent='✓ 套用並發布情境'; }, 2000);
+  }
+  addLog(`情境已套用 — 射源(${CFG.srcLat.toFixed(5)},${CFG.srcLng.toFixed(5)}) 風向${CFG.windDir}°`,'w');
   document.getElementById('adminBody').classList.remove('open');
 }
 
