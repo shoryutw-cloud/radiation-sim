@@ -2,6 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>☢ 輻射彈爆炸污染擴散模擬</title>
 <style>
@@ -284,7 +285,7 @@ input[type=range]::-webkit-slider-thumb {
 
 <div class="wrap">
   <div class="hdr">
-    <h1>輻射彈爆炸污染擴散模擬</h1>
+    <h1>輻射彈爆炸污染擴散模擬 &nbsp;·&nbsp; 情境 <span id="activeScenarioLabel">---</span></h1>
   </div>
 
   <!-- GPS -->
@@ -384,16 +385,7 @@ let pollInterval = null;
 // Load active config from Google Sheets
 async function loadConfigFromSheet() {
   try {
-    // First try getActive
-    const res = await fetch(SHEETS_API + '?action=getActive&t=' + Date.now());
-    const text = await res.text();
-    addLog('雲端回應: ' + text.slice(0,80));
-    let data;
-    try { data = JSON.parse(text); } catch(e) {
-      addLog('⚠ 回應格式錯誤，嘗試讀取情境A', 'w');
-      return await loadScenarioDirect('A');
-    }
-    // Validate data has required fields
+    const data = await fetchJSONP(SHEETS_API + '?action=getActive');
     if (!data.srcLat || isNaN(data.srcLat)) {
       addLog('⚠ 資料不完整，嘗試讀取情境A', 'w');
       return await loadScenarioDirect('A');
@@ -407,24 +399,22 @@ async function loadConfigFromSheet() {
     addLog('✓ 情境' + (data.scenario||'') + ' 載入成功');
     return true;
   } catch(e) {
-    addLog('⚠ 讀取失敗: ' + e.message + ' 嘗試讀取情境A', 'w');
+    addLog('⚠ 讀取失敗: ' + e.message + '，嘗試讀取情境A', 'w');
     return await loadScenarioDirect('A');
   }
 }
 
-// Direct fallback: load scenario A from all scenarios
+// Direct fallback: load specific scenario
 async function loadScenarioDirect(scenario) {
   try {
-    const res = await fetch(SHEETS_API + '?t=' + Date.now());
-    const text = await res.text();
-    const all = JSON.parse(text);
+    const all = await fetchJSONP(SHEETS_API);
     if (all && all[scenario] && !isNaN(all[scenario].srcLat)) {
       applyScenarioData(all[scenario]);
-      addLog('✓ 情境' + scenario + ' 載入成功（備用方式）');
+      addLog('✓ 情境' + scenario + ' 載入成功');
       return true;
     }
   } catch(e) {
-    addLog('⚠ 備用讀取也失敗: ' + e.message, 'w');
+    addLog('⚠ 備用讀取失敗: ' + e.message, 'w');
   }
   addLog('⚠ 使用程式預設值', 'w');
   return false;
@@ -441,16 +431,38 @@ function applyScenarioData(data) {
   CFG.refDose   = data.refDose;
   recalcQ();
   syncAdminUI();
+  // Update header label
+  const lbl = document.getElementById('activeScenarioLabel');
+  if(lbl && data.scenario) lbl.textContent = data.scenario;
 }
+
+// Fetch GAS data using no-redirect fetch trick
+async function fetchGAS(url) {
+  try {
+    // GAS redirects to a different URL - we need to follow redirects
+    // Use fetch with redirect:follow which works cross-origin for GAS
+    const res = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+    });
+    const text = await res.text();
+    // Strip JSONP wrapper if present
+    const match = text.match(/[^(]+\(([\s\S]+)\)\s*;?\s*$/);
+    return JSON.parse(match ? match[1] : text);
+  } catch(e) {
+    throw new Error(e.message);
+  }
+}
+
+const fetchJSONP = fetchGAS;
 
 // Load all 4 scenarios from sheet into panel
 async function loadAllScenarios() {
   try {
-    const res = await fetch(SHEETS_API + '?t=' + Date.now());
-    const data = await res.json();
-    return data; // {A:{...}, B:{...}, C:{...}, D:{...}}
+    const all = await fetchJSONP(SHEETS_API);
+    return all;
   } catch(e) {
-    addLog('⚠ 無法讀取情境列表', 'w');
+    addLog('⚠ 無法讀取情境列表: ' + e.message, 'w');
     return null;
   }
 }
@@ -471,9 +483,7 @@ async function saveConfigToSheet(cfg, scenario) {
     });
     const url = SHEETS_API + '?' + params.toString();
     addLog('發布情境D中...');
-    const res = await fetch(url, {redirect: 'follow'});
-    const text = await res.text();
-    const data = JSON.parse(text);
+    const data = await fetchJSONP(url);
     if (data.success) {
       addLog('✓ 情境D 已發布至雲端');
       return true;
