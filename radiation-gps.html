@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>☢ 輻射探測 GPS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #030a06;
+    --panel: #040d07;
+    --green: #00ff41;
+    --green-dim: #00aa2a;
+    --green-dark: #003310;
+    --amber: #ffb300;
+    --red: #ff2020;
+    --cyan: #00ffcc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* CRT scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,0.025) 2px, rgba(0,255,65,0.025) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 12px;
+    padding-bottom: 30px;
+  }
+
+  .header {
+    text-align: center;
+    padding: 14px 0 10px;
+    border-bottom: 1px solid var(--green-dark);
+    margin-bottom: 14px;
+  }
+
+  .header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green);
+    animation: flicker 5s infinite;
+  }
+
+  .header .subtitle {
+    font-size: 10px;
+    color: var(--green-dim);
+    letter-spacing: 3px;
+    margin-top: 4px;
+  }
+
+  @keyframes flicker {
+    0%,94%,100%{opacity:1} 95%{opacity:.7} 97%{opacity:.5} 99%{opacity:1}
+  }
+
+  .panel {
+    border: 1px solid var(--green-dark);
+    background: var(--panel);
+    padding: 14px;
+    margin-bottom: 12px;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0,255,65,0.04);
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green-dim), transparent);
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--green-dim);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  /* BIG DOSE DISPLAY */
+  .dose-big {
+    text-align: center;
+    padding: 10px 0;
+  }
+
+  .dose-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 64px;
+    font-weight: 900;
+    line-height: 1;
+    transition: color 0.4s;
+    text-shadow: 0 0 40px currentColor;
+  }
+
+  .dose-unit {
+    font-size: 11px;
+    color: var(--green-dim);
+    letter-spacing: 3px;
+    margin-top: 6px;
+  }
+
+  /* DISTANCE */
+  .distance-display {
+    text-align: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--green-dark);
+  }
+
+  .dist-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan);
+  }
+
+  .dist-unit {
+    font-size: 10px;
+    color: var(--green-dim);
+    letter-spacing: 3px;
+  }
+
+  /* DIRECTION COMPASS */
+  .compass-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  #compass-canvas {
+    width: 180px;
+    height: 180px;
+    display: block;
+  }
+
+  /* GAUGE */
+  .gauge-track {
+    height: 24px;
+    background: var(--green-dark);
+    border: 1px solid rgba(0,255,65,0.2);
+    position: relative;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s, background 0.5s;
+  }
+
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: rgba(0,255,65,0.35);
+    letter-spacing: 1px;
+  }
+
+  /* ALERT DOTS */
+  .alert-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 10px 0;
+  }
+
+  .alert-dot {
+    flex: 1;
+    height: 28px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+    opacity: 0.25;
+  }
+
+  .alert-dot.active {
+    opacity: 1;
+    animation: pulse-dot 0.8s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 8px 2px transparent}
+  }
+
+  /* GEIGER WAVEFORM */
+  #geiger-canvas {
+    width: 100%;
+    height: 70px;
+    display: block;
+    background: #000;
+    border: 1px solid var(--green-dark);
+  }
+
+  .cpm-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 8px;
+  }
+
+  .cpm-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: 0 0 15px var(--cyan);
+  }
+
+  /* GPS INFO */
+  .gps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .gps-item { color: var(--green-dim); }
+  .gps-item span { color: var(--green); display: block; font-size: 13px; }
+
+  /* BUTTON */
+  .btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    padding: 14px;
+    border: 1px solid var(--green-dim);
+    background: transparent;
+    color: var(--green);
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--green);
+    transform: translateX(-101%);
+    transition: transform 0.2s;
+  }
+
+  .btn:hover::before { transform: translateX(0); }
+  .btn:hover { color: #000; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* GPS STATUS */
+  .gps-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    margin-bottom: 10px;
+  }
+
+  .gps-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--green-dim);
+    flex-shrink: 0;
+  }
+
+  .gps-dot.active { background: var(--green); animation: blink 1s infinite; }
+  .gps-dot.error { background: var(--red); }
+
+  @keyframes blink { 50%{opacity:0} }
+
+  /* LOG */
+  .log-box {
+    max-height: 100px;
+    overflow-y: auto;
+    font-size: 10px;
+    color: var(--green-dim);
+    line-height: 2;
+  }
+
+  .log-box::-webkit-scrollbar { width: 3px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--green-dim); }
+
+  .log-entry { border-bottom: 1px solid rgba(0,255,65,0.05); }
+  .log-entry .ts { color: rgba(0,255,65,0.35); margin-right: 8px; }
+  .log-entry.warn .ts, .log-entry.warn .msg { color: var(--amber); }
+  .log-entry.danger .ts, .log-entry.danger .msg { color: var(--red); }
+
+  /* WARNING FLASH */
+  .warning-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,32,32,0.07);
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0;
+  }
+  .warning-flash.active { animation: flash 0.6s infinite; }
+  @keyframes flash { 50%{opacity:1} }
+
+  /* FOUND BANNER */
+  .found-banner {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .found-banner.show { display: flex; }
+  .found-box {
+    border: 2px solid var(--red);
+    background: #000;
+    padding: 30px 24px;
+    text-align: center;
+    max-width: 340px;
+    box-shadow: 0 0 60px rgba(255,32,32,0.4);
+  }
+  .found-box h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    color: var(--red);
+    text-shadow: 0 0 20px var(--red);
+    letter-spacing: 3px;
+    animation: flicker 1s infinite;
+  }
+  .found-box p { color: var(--amber); margin-top: 10px; font-size: 12px; letter-spacing: 2px; line-height: 2; }
+
+  .accuracy-warn {
+    font-size: 10px;
+    color: var(--amber);
+    text-align: center;
+    letter-spacing: 1px;
+    margin-top: 6px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="warning-flash" id="warningFlash"></div>
+
+<div class="found-banner" id="foundBanner">
+  <div class="found-box">
+    <h2>☢ 射源定位成功</h2>
+    <p id="foundInfo"></p>
+    <button class="btn" style="margin-top:16px;" onclick="document.getElementById('foundBanner').classList.remove('show')">確認 CONFIRM</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="header">
+    <h1>☢ RAD-HUNTER GPS</h1>
+    <div class="subtitle">真實 GPS 輻射源追蹤模擬器</div>
+  </div>
+
+  <!-- GPS STATUS -->
+  <div class="panel">
+    <div class="panel-title">▶ GPS 定位狀態</div>
+    <div class="gps-status">
+      <div class="gps-dot" id="gpsDot"></div>
+      <span id="gpsMsg">等待授權 GPS 定位權限...</span>
+    </div>
+    <div class="accuracy-warn" id="accuracyWarn">⚠ GPS 精度較低，數值可能有偏差</div>
+    <div class="gps-grid">
+      <div class="gps-item">我的緯度<span id="myLat">---</span></div>
+      <div class="gps-item">我的經度<span id="myLng">---</span></div>
+      <div class="gps-item">射源緯度<span>25.003327</span></div>
+      <div class="gps-item">射源經度<span>121.526629</span></div>
+      <div class="gps-item">GPS 精度<span id="myAcc">--- m</span></div>
+      <div class="gps-item">更新時間<span id="gpsTime">---</span></div>
+    </div>
+  </div>
+
+  <!-- START BUTTON -->
+  <button class="btn" id="btnStart" onclick="startDetection()">▶ 啟動 GPS 探測</button>
+  <div style="height:12px;"></div>
+
+  <!-- DOSE -->
+  <div class="panel">
+    <div class="panel-title">▶ 即時輻射劑量率</div>
+    <div class="dose-big">
+      <div class="dose-value" id="doseVal">---</div>
+      <div class="dose-unit">μSv/h · MICROSIEVERT PER HOUR</div>
+    </div>
+    <div class="distance-display">
+      <div class="dist-unit">距射源距離</div>
+      <div class="dist-val" style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:700;color:var(--cyan);text-shadow:0 0 20px var(--cyan);" id="distVal">--- m</div>
+    </div>
+    <div style="margin-top:12px;">
+      <div class="gauge-labels"><span>本底 0.1</span><span>注意 1</span><span>危險 5</span><span>緊急 10+</span></div>
+      <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div></div>
+    </div>
+    <div class="alert-row">
+      <div class="alert-dot" id="d0" style="border-color:#00ff41;color:#00ff41;">正常</div>
+      <div class="alert-dot" id="d1" style="border-color:#aaff00;color:#aaff00;">注意</div>
+      <div class="alert-dot" id="d2" style="border-color:#ffb300;color:#ffb300;">警戒</div>
+      <div class="alert-dot" id="d3" style="border-color:#ff6600;color:#ff6600;">危險</div>
+      <div class="alert-dot" id="d4" style="border-color:#ff2020;color:#ff2020;">緊急</div>
+    </div>
+  </div>
+
+  <!-- COMPASS -->
+  <div class="panel">
+    <div class="panel-title">▶ 射源方位指引</div>
+    <div class="compass-wrap">
+      <canvas id="compass-canvas" width="180" height="180"></canvas>
+    </div>
+    <div style="text-align:center;font-size:10px;color:var(--green-dim);letter-spacing:2px;" id="bearingText">方位角: ---°</div>
+  </div>
+
+  <!-- GEIGER -->
+  <div class="panel">
+    <div class="panel-title">▶ 蓋格計數器</div>
+    <canvas id="geiger-canvas"></canvas>
+    <div class="cpm-row">
+      <div>
+        <div class="cpm-val" id="cpmVal">0</div>
+        <div style="font-size:10px;color:var(--green-dim);letter-spacing:2px;">CPM 計數/分</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:var(--green-dim);">
+        累積劑量<br>
+        <span style="color:var(--green);font-size:16px;" id="cumDose">0.000 μSv</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="panel">
+    <div class="panel-title">▶ 系統記錄</div>
+    <div class="log-box" id="logBox">
+      <div class="log-entry"><span class="ts">--:--:--</span><span class="msg">系統就緒，等待 GPS 授權</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const SOURCE = { lat: 25.003327, lng: 121.526629 };
+const BACKGROUND = 0.10;       // μSv/h background
+const SOURCE_STRENGTH = 5000;  // controls falloff
+const FIND_RADIUS_M = 15;      // metres to "find" source
+
+// ===== STATE =====
+let watchId = null;
+let running = false;
+let myPos = null;
+let cumDose = 0;
+let lastUpdateTime = null;
+let geigerHistory = [];
+let foundSource = false;
+let geigerAnimId = null;
+
+// ===== GEIGER CANVAS =====
+const geigerCanvas = document.getElementById('geiger-canvas');
+const gCtx = geigerCanvas.getContext('2d');
+
+function resizeGeiger() {
+  geigerCanvas.width = geigerCanvas.parentElement.clientWidth - 28;
+  geigerCanvas.height = 70;
+}
+resizeGeiger();
+window.addEventListener('resize', resizeGeiger);
+
+// ===== COMPASS CANVAS =====
+const compassCanvas = document.getElementById('compass-canvas');
+const cCtx = compassCanvas.getContext('2d');
+
+// ===== HAVERSINE DISTANCE =====
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ===== BEARING =====
+function bearing(lat1, lng1, lat2, lng2) {
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const la1 = lat1 * Math.PI / 180;
+  const la2 = lat2 * Math.PI / 180;
+  const y = Math.sin(dLng) * Math.cos(la2);
+  const x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dLng);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+// ===== DOSE CALC =====
+function calcDose(distM) {
+  if (distM < 1) return 9999;
+  return BACKGROUND + SOURCE_STRENGTH / (distM * distM);
+}
+
+// ===== DRAW COMPASS =====
+function drawCompass(bearingDeg, distM, dose) {
+  const W = 180, H = 180, cx = 90, cy = 90, r = 80;
+  cCtx.clearRect(0, 0, W, H);
+
+  // Background circle
+  cCtx.beginPath();
+  cCtx.arc(cx, cy, r, 0, Math.PI*2);
+  cCtx.fillStyle = '#000d03';
+  cCtx.fill();
+  cCtx.strokeStyle = 'rgba(0,255,65,0.2)';
+  cCtx.lineWidth = 1;
+  cCtx.stroke();
+
+  // Inner rings
+  [60, 40, 20].forEach(rr => {
+    cCtx.beginPath();
+    cCtx.arc(cx, cy, rr, 0, Math.PI*2);
+    cCtx.strokeStyle = 'rgba(0,255,65,0.07)';
+    cCtx.stroke();
+  });
+
+  // Cardinal labels
+  const cardinals = ['N','E','S','W'];
+  cCtx.fillStyle = 'rgba(0,255,65,0.4)';
+  cCtx.font = '10px Share Tech Mono';
+  cCtx.textAlign = 'center';
+  cCtx.textBaseline = 'middle';
+  cardinals.forEach((c, i) => {
+    const a = i * Math.PI / 2 - Math.PI / 2;
+    cCtx.fillText(c, cx + Math.cos(a) * 70, cy + Math.sin(a) * 70);
+  });
+
+  // Dose halo (intensity ring)
+  if (myPos) {
+    const intensity = Math.min(dose / 10, 1);
+    const grad = cCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    const col = dose < 1 ? '0,255,65' : dose < 3 ? '255,179,0' : '255,32,32';
+    grad.addColorStop(0, `rgba(${col},${0.15 * intensity})`);
+    grad.addColorStop(1, 'transparent');
+    cCtx.beginPath();
+    cCtx.arc(cx, cy, r, 0, Math.PI*2);
+    cCtx.fillStyle = grad;
+    cCtx.fill();
+  }
+
+  // Arrow pointing to source
+  if (myPos) {
+    const rad = (bearingDeg - 90) * Math.PI / 180;
+    const arrowLen = 55;
+    const ax = cx + Math.cos(rad) * arrowLen;
+    const ay = cy + Math.sin(rad) * arrowLen;
+
+    // Arrow line
+    const arrowColor = dose < 1 ? '#00ff41' : dose < 3 ? '#ffb300' : '#ff2020';
+    cCtx.strokeStyle = arrowColor;
+    cCtx.lineWidth = 2.5;
+    cCtx.shadowBlur = 10;
+    cCtx.shadowColor = arrowColor;
+    cCtx.beginPath();
+    cCtx.moveTo(cx, cy);
+    cCtx.lineTo(ax, ay);
+    cCtx.stroke();
+
+    // Arrowhead
+    const headLen = 12;
+    const headAngle = 0.4;
+    cCtx.beginPath();
+    cCtx.moveTo(ax, ay);
+    cCtx.lineTo(ax - headLen * Math.cos(rad - headAngle), ay - headLen * Math.sin(rad - headAngle));
+    cCtx.moveTo(ax, ay);
+    cCtx.lineTo(ax - headLen * Math.cos(rad + headAngle), ay - headLen * Math.sin(rad + headAngle));
+    cCtx.stroke();
+    cCtx.shadowBlur = 0;
+
+    // ☢ at arrow tip
+    cCtx.fillStyle = arrowColor;
+    cCtx.font = '14px serif';
+    cCtx.textAlign = 'center';
+    cCtx.textBaseline = 'middle';
+    cCtx.fillText('☢', ax + Math.cos(rad)*10, ay + Math.sin(rad)*10);
+  }
+
+  // Center dot (me)
+  cCtx.beginPath();
+  cCtx.arc(cx, cy, 6, 0, Math.PI*2);
+  cCtx.fillStyle = '#00ff41';
+  cCtx.shadowBlur = 10;
+  cCtx.shadowColor = '#00ff41';
+  cCtx.fill();
+  cCtx.shadowBlur = 0;
+
+  // Distance text
+  if (myPos) {
+    cCtx.fillStyle = 'rgba(0,255,204,0.6)';
+    cCtx.font = '10px Share Tech Mono';
+    cCtx.textAlign = 'center';
+    cCtx.textBaseline = 'bottom';
+    cCtx.fillText(distM < 1000 ? `${Math.round(distM)}m` : `${(distM/1000).toFixed(2)}km`, cx, H - 8);
+  }
+}
+
+function drawGeigerWave(cpm) {
+  const W = geigerCanvas.width, H = 70;
+  gCtx.clearRect(0, 0, W, H);
+  gCtx.fillStyle = '#000';
+  gCtx.fillRect(0, 0, W, H);
+
+  const prob = Math.min(cpm / 800, 1);
+  if (Math.random() < prob * 0.5 || geigerHistory.length === 0) {
+    geigerHistory.push(0.3 + Math.random() * 0.7 * prob);
+  } else {
+    geigerHistory.push(0.02 + Math.random() * 0.05);
+  }
+  if (geigerHistory.length > W) geigerHistory.shift();
+
+  gCtx.strokeStyle = '#00ff41';
+  gCtx.lineWidth = 1.5;
+  gCtx.shadowBlur = 5;
+  gCtx.shadowColor = '#00ff41';
+  gCtx.beginPath();
+  for (let i = 0; i < geigerHistory.length; i++) {
+    const x = i;
+    const y = H - 2 - geigerHistory[i] * (H - 6);
+    i === 0 ? gCtx.moveTo(x, y) : gCtx.lineTo(x, y);
+  }
+  gCtx.stroke();
+  gCtx.shadowBlur = 0;
+
+  gCtx.strokeStyle = 'rgba(0,255,65,0.12)';
+  gCtx.lineWidth = 1;
+  gCtx.beginPath();
+  gCtx.moveTo(0, H - 2); gCtx.lineTo(W, H - 2);
+  gCtx.stroke();
+}
+
+function updateDoseUI(dose, distM, bearingDeg) {
+  const doseEl = document.getElementById('doseVal');
+  const gaugeEl = document.getElementById('gaugeFill');
+  const cpmEl = document.getElementById('cpmVal');
+
+  const dStr = dose > 99 ? dose.toFixed(1) : dose.toFixed(3);
+  doseEl.textContent = dStr === '9999.0' ? '>9999' : dStr;
+
+  let color, alertLevel;
+  if (dose < 0.3)      { color = '#00ff41'; alertLevel = 0; }
+  else if (dose < 1.0) { color = '#aaff00'; alertLevel = 1; }
+  else if (dose < 2.5) { color = '#ffb300'; alertLevel = 2; }
+  else if (dose < 5.0) { color = '#ff6600'; alertLevel = 3; }
+  else                 { color = '#ff2020'; alertLevel = 4; }
+
+  doseEl.style.color = color;
+
+  const pct = Math.min(Math.log1p(dose) / Math.log1p(12) * 100, 100);
+  gaugeEl.style.width = pct + '%';
+  gaugeEl.style.background = color;
+  gaugeEl.style.boxShadow = `0 0 10px ${color}`;
+
+  for (let i = 0; i <= 4; i++) {
+    const d = document.getElementById('d'+i);
+    d.classList.toggle('active', i === alertLevel);
+    d.style.opacity = i <= alertLevel ? '1' : '0.2';
+    d.style.boxShadow = i === alertLevel ? `0 0 10px currentColor` : 'none';
+  }
+
+  document.getElementById('warningFlash').classList.toggle('active', alertLevel >= 3);
+
+  const cpm = Math.round(dose * 85 + Math.random() * 8);
+  cpmEl.textContent = cpm;
+  cpmEl.style.color = color;
+  drawGeigerWave(cpm);
+
+  const distText = distM < 1000 ? `${Math.round(distM)} m` : `${(distM/1000).toFixed(2)} km`;
+  document.getElementById('distVal').textContent = distText;
+  document.getElementById('bearingText').textContent = `方位角: ${Math.round(bearingDeg)}° (往${cardinalName(bearingDeg)}方向)`;
+
+  drawCompass(bearingDeg, distM, dose);
+}
+
+function cardinalName(deg) {
+  const dirs = ['北','東北','東','東南','南','西南','西','西北'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+// ===== GPS =====
+function startDetection() {
+  if (!navigator.geolocation) {
+    addLog('此裝置不支援 GPS', 'danger');
+    return;
+  }
+
+  document.getElementById('btnStart').disabled = true;
+  addLog('▶ 請求 GPS 授權...');
+  document.getElementById('gpsMsg').textContent = '正在取得 GPS 定位...';
+
+  watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+    enableHighAccuracy: true,
+    maximumAge: 2000,
+    timeout: 15000
+  });
+
+  running = true;
+  geigerAnimLoop();
+}
+
+function geigerAnimLoop() {
+  if (!running) return;
+  if (!myPos) {
+    drawGeigerWave(10);
+  }
+  geigerAnimId = setTimeout(geigerAnimLoop, 200);
+}
+
+function onPosition(pos) {
+  const { latitude, longitude, accuracy } = pos.coords;
+  myPos = { lat: latitude, lng: longitude };
+
+  const now = new Date();
+  document.getElementById('myLat').textContent = latitude.toFixed(6);
+  document.getElementById('myLng').textContent = longitude.toFixed(6);
+  document.getElementById('myAcc').textContent = `${Math.round(accuracy)} m`;
+  document.getElementById('gpsTime').textContent = now.toTimeString().slice(0, 8);
+
+  const dot = document.getElementById('gpsDot');
+  dot.className = 'gps-dot active';
+  document.getElementById('gpsMsg').textContent = `GPS 已連接 · 精度 ±${Math.round(accuracy)}m`;
+
+  const accWarn = document.getElementById('accuracyWarn');
+  accWarn.style.display = accuracy > 30 ? 'block' : 'none';
+
+  // Calculate
+  const distM = haversine(latitude, longitude, SOURCE.lat, SOURCE.lng);
+  const bearingDeg = bearing(latitude, longitude, SOURCE.lat, SOURCE.lng);
+  const dose = calcDose(distM);
+
+  // Cumulative dose
+  const nowMs = Date.now();
+  if (lastUpdateTime) {
+    const dtHours = (nowMs - lastUpdateTime) / 3600000;
+    cumDose += dose * dtHours;
+    document.getElementById('cumDose').textContent = cumDose.toFixed(4) + ' μSv';
+  }
+  lastUpdateTime = nowMs;
+
+  updateDoseUI(dose, distM, bearingDeg);
+
+  // Logging (every significant change)
+  if (dose > 5) addLog(`⚠ 高輻射！${dose.toFixed(2)} μSv/h · 距離 ${Math.round(distM)}m`, 'danger');
+  else if (dose > 1) addLog(`注意：${dose.toFixed(3)} μSv/h · 距射源 ${Math.round(distM)}m`, 'warn');
+  else addLog(`劑量 ${dose.toFixed(3)} μSv/h · 距射源 ${Math.round(distM)}m`);
+
+  // Found?
+  if (!foundSource && distM < FIND_RADIUS_M) {
+    foundSource = true;
+    document.getElementById('foundInfo').innerHTML =
+      `距射源: ${Math.round(distM)} 公尺<br>峰值劑量率: ${dose.toFixed(2)} μSv/h<br>座標: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    document.getElementById('foundBanner').classList.add('show');
+    addLog('☢ 射源定位成功！', 'danger');
+  }
+}
+
+function onError(err) {
+  const msgs = {
+    1: 'GPS 授權被拒絕，請在瀏覽器設定中允許位置存取',
+    2: 'GPS 訊號無法取得，請到戶外開放空間',
+    3: 'GPS 逾時，請重試'
+  };
+  document.getElementById('gpsDot').className = 'gps-dot error';
+  document.getElementById('gpsMsg').textContent = msgs[err.code] || 'GPS 錯誤';
+  document.getElementById('btnStart').disabled = false;
+  addLog(msgs[err.code] || 'GPS 錯誤', 'danger');
+  running = false;
+}
+
+// ===== LOG =====
+let logCount = 0;
+function addLog(msg, type = 'normal') {
+  const box = document.getElementById('logBox');
+  const ts = new Date().toTimeString().slice(0, 8);
+  const div = document.createElement('div');
+  div.className = 'log-entry' + (type !== 'normal' ? ' ' + type : '');
+  div.innerHTML = `<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  if (++logCount > 60) box.firstChild.remove();
+}
+
+// Init compass blank
+drawCompass(0, 0, 0);
+</script>
+</body>
+</html>
