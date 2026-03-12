@@ -386,7 +386,7 @@ let pollInterval = null;
 async function loadConfigFromSheet() {
   try {
     const data = await fetchJSONP(SHEETS_API + '?action=getActive');
-    if (!data.srcLat || isNaN(data.srcLat)) {
+    if (data.scenario !== 'E' && (!data.srcLat || isNaN(data.srcLat))) {
       addLog('⚠ 資料不完整，嘗試讀取情境A', 'w');
       return await loadScenarioDirect('A');
     }
