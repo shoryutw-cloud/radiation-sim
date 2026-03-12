@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>☢ Cs-137 RDD污染擴散模擬器</title>
+<title>☢ Cs-137 髒彈擴散模擬器</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -153,10 +153,6 @@ body::before {
 .bearing-txt { text-align:center; font-size:14px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
 
 /* GEIGER */
-#cvsGeiger { width:100%; height:65px; display:block; background:#000; border:1px solid var(--green-dark); }
-.cpm-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:8px; }
-.cpm-num { font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700; color:#00ffcc; text-shadow:0 0 15px #00ffcc; }
-.cpm-lbl { font-size:13px; color:var(--green-dim); letter-spacing:2px; }
 
 /* WIND CONTROL */
 .wind-wrap { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -258,7 +254,7 @@ input[type=range]::-webkit-slider-thumb {
 <div class="wrap">
   <div class="hdr">
     <h1>☢ Cs-137 DIRTY BOMB SIM</h1>
-    <div class="sub">污染擴散 · 煙雨模型 · GPS定位</div>
+    <div class="sub">髒彈擴散 · 高斯煙流模型 · GPS 即時追蹤</div>
   </div>
 
   <!-- SCENARIO CONFIG -->
@@ -332,7 +328,7 @@ input[type=range]::-webkit-slider-thumb {
       <div style="margin-top:14px;">
         <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
         <div class="log-box" id="logBox">
-          <div class="le"><span class="ts">--:--:--</span><span class="msg">Cs-137 RDD擴散模擬器就緒</span></div>
+          <div class="le"><span class="ts">--:--:--</span><span class="msg">Cs-137 髒彈擴散模擬器就緒</span></div>
         </div>
       </div>
     </div>
@@ -525,35 +521,14 @@ let myPos = null;
 let cumDose = 0;
 let lastUpdateMs = null;
 let foundSource = false;
-let geigerHist = [];
 let watchId = null;
 
 // ============================================================
 // GEIGER CANVAS
 // ============================================================
-const cvsG = document.getElementById('cvsGeiger');
-const gCtx = cvsG.getContext('2d');
-function resizeGeiger() { cvsG.width = cvsG.parentElement.clientWidth-28; cvsG.height=65; }
-resizeGeiger();
-window.addEventListener('resize', resizeGeiger);
 
-function drawGeiger(cpm) {
-  const W=cvsG.width, H=65;
-  gCtx.clearRect(0,0,W,H);
-  gCtx.fillStyle='#000'; gCtx.fillRect(0,0,W,H);
-  const prob = Math.min(cpm/1500, 1);
-  geigerHist.push(Math.random()<prob*0.5 ? 0.3+Math.random()*0.7*prob : 0.02+Math.random()*0.05);
-  if (geigerHist.length>W) geigerHist.shift();
-  gCtx.strokeStyle='#00e5ff'; gCtx.lineWidth=1.5; gCtx.shadowBlur=5; gCtx.shadowColor='#00e5ff';
-  gCtx.beginPath();
-  for(let i=0;i<geigerHist.length;i++){
-    const y=H-2-geigerHist[i]*(H-6);
-    i===0?gCtx.moveTo(i,y):gCtx.lineTo(i,y);
-  }
-  gCtx.stroke(); gCtx.shadowBlur=0;
-  gCtx.strokeStyle='rgba(0,229,255,.1)'; gCtx.lineWidth=1;
-  gCtx.beginPath(); gCtx.moveTo(0,H-2); gCtx.lineTo(W,H-2); gCtx.stroke();
-}
+
+
 
 // ============================================================
 // COMPASS CANVAS
@@ -805,10 +780,7 @@ function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
   document.getElementById('flash').classList.toggle('on',alertLevel>=2);
 
   // CPM (Cs-137: ~1 μSv/h ≈ 120 CPM for typical GM tube)
-  const cpm = Math.round(dose*1000*120 + Math.random()*10);
-  document.getElementById('cpmNum').textContent = cpm>9999?'>9999':cpm;
-  document.getElementById('cpmNum').style.color=color;
-  drawGeiger(cpm);
+
 
   // Dist
   document.getElementById('distNum').textContent = distM<1000?Math.round(distM):`${(distM/1000).toFixed(2)}k`;
@@ -832,14 +804,51 @@ function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
 // GPS
 // ============================================================
 function startGPS() {
-  if (!navigator.geolocation) { addLog('此裝置不支援 GPS','d'); return; }
+  // Check basic support
+  if (!navigator.geolocation) {
+    addLog('✕ 此裝置不支援 Geolocation API','d');
+    document.getElementById('gpsMsg').textContent='不支援 GPS';
+    document.getElementById('gpsDot').className='gps-dot err';
+    return;
+  }
+
+  // Check if running in secure context
+  if (!window.isSecureContext) {
+    addLog('✕ 需要 HTTPS 才能使用 GPS','d');
+    document.getElementById('gpsMsg').textContent='需要 HTTPS 環境';
+    document.getElementById('gpsDot').className='gps-dot err';
+    return;
+  }
+
   document.getElementById('btnStart').disabled=true;
-  addLog('▶ 請求 GPS 授權...');
-  document.getElementById('gpsMsg').textContent='正在取得定位...';
+  document.getElementById('gpsMsg').textContent='正在請求定位授權...';
+  addLog('▶ 請求 GPS 授權中...');
+
+  // Try permissions API first to check status
+  if (navigator.permissions) {
+    navigator.permissions.query({name:'geolocation'}).then(result => {
+      addLog(`GPS 權限狀態: ${result.state}`);
+      if (result.state === 'denied') {
+        addLog('✕ GPS 已被封鎖，請至手機設定 > Chrome > 位置 > 改為允許','d');
+        document.getElementById('gpsMsg').textContent='GPS 被封鎖，請至設定開啟';
+        document.getElementById('gpsDot').className='gps-dot err';
+        document.getElementById('btnStart').disabled=false;
+        return;
+      }
+    }).catch(e => addLog(`權限查詢失敗: ${e.message}`));
+  }
 
   watchId = navigator.geolocation.watchPosition(onPos, onErr, {
-    enableHighAccuracy:true, maximumAge:2000, timeout:15000
+    enableHighAccuracy:true, maximumAge:3000, timeout:20000
   });
+
+  // Timeout warning
+  setTimeout(() => {
+    if (!myPos) {
+      addLog('⚠ 超過10秒未取得定位，請確認GPS已開啟且在戶外','w');
+      document.getElementById('gpsMsg').textContent='定位中... 請移至戶外空曠處';
+    }
+  }, 10000);
 }
 
 function onPos(pos) {
@@ -885,11 +894,19 @@ function onPos(pos) {
 }
 
 function onErr(e) {
-  const m={1:'GPS 授權被拒絕 — 請至設定允許位置存取',2:'GPS 訊號無法取得',3:'GPS 逾時'};
+  const m={
+    1:'GPS 授權被拒絕 → 設定 > Chrome > 位置 > 允許',
+    2:'GPS 訊號無法取得 → 請到戶外開放空間',
+    3:'GPS 逾時 → 訊號太弱，請重試'
+  };
   document.getElementById('gpsDot').className='gps-dot err';
-  document.getElementById('gpsMsg').textContent=m[e.code]||'GPS 錯誤';
+  const msg = m[e.code] || `GPS 錯誤 (code:${e.code})`;
+  document.getElementById('gpsMsg').textContent=msg;
   document.getElementById('btnStart').disabled=false;
-  addLog(m[e.code]||'GPS 錯誤','d');
+  addLog(`✕ ${msg} (錯誤碼:${e.code} ${e.message||''})`, 'd');
+
+  // Re-enable button to retry
+  setTimeout(()=>{ document.getElementById('btnStart').disabled=false; }, 1000);
 }
 
 // ============================================================
@@ -911,7 +928,6 @@ function addLog(msg,type='') {
 // ============================================================
 drawWindCompass(CFG.windDir);
 drawCompass(135, 500, 0, CFG.windDir);
-drawGeiger(15);
 addLog(`模型: 高斯煙流 · Cs-137 0.662MeV · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
 addLog(`校準: ${CFG.refDist}m處=${CFG.refDose}mSv/h (下風側) Q_eff=${Q_eff.toFixed(1)}`);
 </script>
