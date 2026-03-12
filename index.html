@@ -378,7 +378,7 @@ input[type=range]::-webkit-slider-thumb {
 // ============================================================
 // Google Sheets API
 // ============================================================
-const SHEETS_API = 'https://script.google.com/macros/s/AKfycbxn_8i2OCQ-QPB6nxDfaeAaJDvkZpORRZk5WpdqiI12BqKNb5f_1c20Q9kTFnBCo3jpRA/exec';
+const SHEETS_API = 'https://script.google.com/macros/s/AKfycbx5JrgEm106AsjQlvfwdXZZLZEQDwubFVyzQCpl-9tceaucpCnFN0NuXxwQ4HLNh392tQ/exec';
 let lastUpdatedAt = '';
 let pollInterval = null;
 
@@ -505,12 +505,14 @@ function showUpdateNotify(updatedAt, scenario) {
 
 // Sync admin UI inputs from CFG
 function syncAdminUI() {
+  // 面板解鎖中不覆蓋，避免講師輸入被打斷
+  const isOpen = document.getElementById('adminBody').classList.contains('open');
+  if (isOpen) return;
   document.getElementById('srcLat').value    = CFG.srcLat;
   document.getElementById('srcLng').value    = CFG.srcLng;
   document.getElementById('srcDose').value   = CFG.srcDose;
   document.getElementById('refDist').value   = CFG.refDist;
   document.getElementById('refDose').value   = CFG.refDose;
-  document.getElementById('findRadius').value= CFG.findRadius;
   document.getElementById('windDir').value   = CFG.windDir;
   document.getElementById('windSpeed').value = CFG.windSpeed;
   document.getElementById('sigmaCtrl').value = CFG.sigma;
@@ -524,7 +526,7 @@ function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(() => {
     loadConfigFromSheet();
-  }, 10000);
+  }, 30000);
 }
 
 // ============================================================
