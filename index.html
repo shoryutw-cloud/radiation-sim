@@ -378,7 +378,7 @@ input[type=range]::-webkit-slider-thumb {
 // ============================================================
 // Google Sheets API
 // ============================================================
-const SHEETS_API = 'https://script.google.com/macros/s/AKfycbx5JrgEm106AsjQlvfwdXZZLZEQDwubFVyzQCpl-9tceaucpCnFN0NuXxwQ4HLNh392tQ/exec';
+const SHEETS_API = 'https://script.google.com/macros/s/AKfycbxn_8i2OCQ-QPB6nxDfaeAaJDvkZpORRZk5WpdqiI12BqKNb5f_1c20Q9kTFnBCo3jpRA/exec';
 let lastUpdatedAt = '';
 let pollInterval = null;
 
@@ -424,6 +424,7 @@ async function loadScenarioDirect(scenario) {
 function applyScenarioData(data) {
   CFG.srcLat    = data.srcLat;
   CFG.srcLng    = data.srcLng;
+  if(data.srcDose) CFG.srcDose = data.srcDose;
   CFG.windDir   = data.windDir;
   CFG.windSpeed = data.windSpeed;
   CFG.sigma     = data.sigma;
@@ -475,6 +476,7 @@ async function saveConfigToSheet(cfg, scenario) {
       scenario:  scenario || 'D',
       srcLat:    cfg.srcLat,
       srcLng:    cfg.srcLng,
+      srcDose:   cfg.srcDose,
       windDir:   cfg.windDir,
       windSpeed: cfg.windSpeed,
       sigma:     cfg.sigma,
