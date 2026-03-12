@@ -192,6 +192,12 @@ input[type=range]::-webkit-slider-thumb {
 .btn:hover::before { transform:translateX(0); }
 .btn:hover { color:#000; }
 .btn:disabled { opacity:.3; cursor:not-allowed; }
+.btn.scn-active {
+  background: var(--amber) !important;
+  color: #000 !important;
+  border-color: var(--amber) !important;
+}
+.btn.scn-active::before { display:none; }
 .btn.amber { border-color:var(--amber); color:var(--amber); }
 .btn.amber::before { background:var(--amber); }
 .btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -371,20 +377,50 @@ let pollInterval = null;
 // Load active config from Google Sheets
 async function loadConfigFromSheet() {
   try {
+    // First try getActive
     const res = await fetch(SHEETS_API + '?action=getActive&t=' + Date.now());
-    const data = await res.json();
+    const text = await res.text();
+    addLog('雲端回應: ' + text.slice(0,80));
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      addLog('⚠ 回應格式錯誤，嘗試讀取情境A', 'w');
+      return await loadScenarioDirect('A');
+    }
+    // Validate data has required fields
+    if (!data.srcLat || isNaN(data.srcLat)) {
+      addLog('⚠ 資料不完整，嘗試讀取情境A', 'w');
+      return await loadScenarioDirect('A');
+    }
     const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
     if (changed && lastUpdatedAt !== '') {
       showUpdateNotify(data.updatedAt, data.scenario);
     }
     lastUpdatedAt = data.updatedAt || lastUpdatedAt;
     applyScenarioData(data);
-    addLog('✓ 情境' + (data.scenario||'') + ' 已從雲端載入 · ' + (data.updatedAt||''));
+    addLog('✓ 情境' + (data.scenario||'') + ' 載入成功');
     return true;
   } catch(e) {
-    addLog('⚠ 無法讀取雲端情境，使用預設值', 'w');
-    return false;
+    addLog('⚠ 讀取失敗: ' + e.message + ' 嘗試讀取情境A', 'w');
+    return await loadScenarioDirect('A');
   }
+}
+
+// Direct fallback: load scenario A from all scenarios
+async function loadScenarioDirect(scenario) {
+  try {
+    const res = await fetch(SHEETS_API + '?t=' + Date.now());
+    const text = await res.text();
+    const all = JSON.parse(text);
+    if (all && all[scenario] && !isNaN(all[scenario].srcLat)) {
+      applyScenarioData(all[scenario]);
+      addLog('✓ 情境' + scenario + ' 載入成功（備用方式）');
+      return true;
+    }
+  } catch(e) {
+    addLog('⚠ 備用讀取也失敗: ' + e.message, 'w');
+  }
+  addLog('⚠ 使用程式預設值', 'w');
+  return false;
 }
 
 // Apply scenario data to CFG
@@ -786,9 +822,7 @@ async function selectScenario(scenario) {
   ['A','B','C','D'].forEach(s => {
     const btn = document.getElementById('scnBtn' + s);
     if(btn) {
-      btn.style.borderColor = s === scenario ? 'var(--amber)' : '';
-      btn.style.background  = s === scenario ? 'var(--amber)' : '';
-      btn.style.color       = s === scenario ? '#000' : '';
+      btn.classList.toggle('scn-active', s === scenario);
     }
   });
 
