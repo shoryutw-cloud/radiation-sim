@@ -385,7 +385,7 @@ let pollInterval = null;
 // Load active scenario name from Google Sheets
 async function loadConfigFromSheet() {
   try {
-    const data = await fetchGAS(SHEETS_API + '?action=getActive');
+    const data = await fetchGAS(SHEETS_API);
     const scenario = data.scenario || 'E';
     const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
     if (changed && lastUpdatedAt !== '') {
@@ -395,23 +395,16 @@ async function loadConfigFromSheet() {
     applyScenario(scenario);
     return true;
   } catch(e) {
-    addLog('⚠ 讀取失敗: ' + e.message, 'w');
-    applyScenario('E');
+    addLog('✕ 讀取失敗: ' + e.message, 'd');
+    applyScenario('A');
     return false;
   }
 }
 
-// Apply scenario by name (A/B/C/E)
+// Apply scenario by name (A/B/C), default A
 function applyScenario(scenario) {
   const lbl = document.getElementById('activeScenarioLabel');
-  if (scenario === 'E' || !SCENARIOS[scenario]) {
-    if(lbl) lbl.textContent = '待機';
-    document.getElementById('doseNum').textContent = '---';
-    document.getElementById('doseUnit').textContent = 'μSv/h';
-    document.getElementById('distNum').textContent = '---';
-    addLog('待機中（無情境）');
-    return;
-  }
+  if (!SCENARIOS[scenario]) scenario = 'A';
   const s = SCENARIOS[scenario];
   CFG.srcLat    = s.srcLat;
   CFG.srcLng    = s.srcLng;
@@ -424,7 +417,6 @@ function applyScenario(scenario) {
   recalcQ();
   syncAdminUI();
   if(lbl) lbl.textContent = scenario;
-  addLog('✓ 情境' + scenario + ' 套用成功');
 }
 
 // applyScenarioData kept for compatibility
@@ -830,7 +822,6 @@ function checkPw() {
 function lockAdmin() {
   document.getElementById('adminBody').classList.remove('open');
   document.getElementById('pwModal').style.display = 'none';
-  addLog('情境設定面板已鎖定');
 }
 
 // Currently selected scenario
@@ -839,7 +830,7 @@ let currentScenario = 'A';
 // Select and preview a scenario from sheet
 async function selectScenario(scenario) {
   // Update button styles
-  ['A','B','C','D','E'].forEach(s => {
+  ['A','B','C'].forEach(s => {
     const btn = document.getElementById('scnBtn' + s);
     if(btn) {
       btn.classList.toggle('scn-active', s === scenario);
@@ -848,11 +839,6 @@ async function selectScenario(scenario) {
 
   currentScenario = scenario;
   document.getElementById('scnStatus').textContent = '已選擇情境 ' + scenario + (scenario==='D'?' (自訂)':'') + ' — 請按「套用並發布」生效';
-
-  if (scenario === 'E') {
-    document.getElementById('scnStatus').textContent = '已選擇「無情境」— 按發布後學員畫面將重置';
-    return;
-  }
 
   // Load from built-in SCENARIOS
   if (SCENARIOS[scenario]) {
@@ -1006,12 +992,10 @@ function startGPS() {
 
   document.getElementById('btnStart').disabled=true;
   document.getElementById('gpsMsg').textContent='正在請求定位授權...';
-  addLog('▶ 請求 GPS 授權中...');
 
   // Try permissions API first to check status
   if (navigator.permissions) {
     navigator.permissions.query({name:'geolocation'}).then(result => {
-      addLog(`GPS 權限狀態: ${result.state}`);
       if (result.state === 'denied') {
         addLog('✕ GPS 已被封鎖，請至手機設定 > Chrome > 位置 > 改為允許','d');
         document.getElementById('gpsMsg').textContent='GPS 被封鎖，請至設定開啟';
@@ -1019,7 +1003,7 @@ function startGPS() {
         document.getElementById('btnStart').disabled=false;
         return;
       }
-    }).catch(e => addLog(`權限查詢失敗: ${e.message}`));
+    }).catch(()=>{});
   }
 
   watchId = navigator.geolocation.watchPosition(onPos, onErr, {
@@ -1029,7 +1013,6 @@ function startGPS() {
   // Timeout warning
   setTimeout(() => {
     if (!myPos) {
-      addLog('⚠ 超過10秒未取得定位，請確認GPS已開啟且在戶外','w');
       document.getElementById('gpsMsg').textContent='定位中... 請移至戶外空曠處';
     }
   }, 10000);
@@ -1063,9 +1046,6 @@ function onPos(pos) {
   updateUI(dose, distM, bearingToSrc, bearingFromSrc);
 
   // Log
-  if (dose>3) addLog(`⚠ 高劑量 ${dose.toFixed(2)} mSv/h · ${Math.round(distM)}m`,'d');
-  else if (dose>0.5) addLog(`注意 ${dose.toFixed(3)} mSv/h · 距射源 ${Math.round(distM)}m`,'w');
-  else addLog(`${dose.toFixed(4)} mSv/h · 距射源 ${Math.round(distM)}m`);
 
   // Found?
   if (!foundSource && distM<CFG.findRadius) {
@@ -1118,10 +1098,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   drawWindCompass(CFG.windDir);
   drawCompass(135, 500, 0, CFG.windDir);
-  addLog('系統啟動，正在讀取雲端情境...');
   loadConfigFromSheet().then(() => {
     drawCompass(135, 500, 0, CFG.windDir);
-    addLog(`模型: 高斯煙流 · Cs-137 · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
   });
   startPolling();
 });
@@ -1148,12 +1126,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <!-- Scenario selector -->
       <div class="ptitle" style="margin-bottom:8px;">▶ 選擇情境</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
-        <button class="btn" id="scnBtnA" onclick="selectScenario('A')">情境 A</button>
-        <button class="btn" id="scnBtnB" onclick="selectScenario('B')">情境 B</button>
-        <button class="btn" id="scnBtnC" onclick="selectScenario('C')">情境 C</button>
-        <button class="btn" id="scnBtnD" onclick="selectScenario('D')">情境 D（自訂）</button>
-        <button class="btn" id="scnBtnE" onclick="selectScenario('E')" style="grid-column:1/-1;">無情境（待機）</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+        <button class="btn" id="scnBtnA" onclick="selectScenario('A')" style="text-align:left;padding:10px 12px;height:auto;">
+          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 A</div>
+          <div style="font-size:12px;letter-spacing:1px;opacity:0.8;line-height:1.8;font-family:'Share Tech Mono',monospace;">
+            緯度 25.00307<br>
+            經度 121.52751<br>
+            爆炸點 500 mSv/h<br>
+            風向 135° &nbsp;風速 3 m/s<br>
+            σ=25m &nbsp;校準70m@1mSv/h
+          </div>
+        </button>
+        <button class="btn" id="scnBtnB" onclick="selectScenario('B')" style="text-align:left;padding:10px 12px;height:auto;">
+          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 B</div>
+          <div style="font-size:12px;letter-spacing:1px;opacity:0.8;line-height:1.8;font-family:'Share Tech Mono',monospace;">
+            緯度 25.00151<br>
+            經度 121.52702<br>
+            爆炸點 500 mSv/h<br>
+            風向 180° &nbsp;風速 3 m/s<br>
+            σ=25m &nbsp;校準70m@1mSv/h
+          </div>
+        </button>
+        <button class="btn" id="scnBtnC" onclick="selectScenario('C')" style="text-align:left;padding:10px 12px;height:auto;">
+          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 C</div>
+          <div style="font-size:12px;letter-spacing:1px;opacity:0.8;line-height:1.8;font-family:'Share Tech Mono',monospace;">
+            緯度 25.00324<br>
+            經度 121.52494<br>
+            爆炸點 500 mSv/h<br>
+            風向 90° &nbsp;風速 3 m/s<br>
+            σ=25m &nbsp;校準70m@1mSv/h
+          </div>
+        </button>
       </div>
       <div id="scnStatus" style="font-size:14px;color:var(--amber);letter-spacing:2px;margin-bottom:10px;min-height:20px;"></div>
 
