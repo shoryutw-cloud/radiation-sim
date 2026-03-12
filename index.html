@@ -183,14 +183,13 @@ input[type=range]::-webkit-slider-thumb {
   font-family:'Share Tech Mono',monospace; font-size:24px; letter-spacing:3px;
   padding:12px; border:1px solid var(--green-dim); background:transparent;
   color:var(--green); cursor:pointer; width:100%; transition:all .2s;
-  text-transform:uppercase; position:relative; overflow:hidden;
+  text-transform:uppercase;
 }
-.btn::before {
-  content:''; position:absolute; inset:0; background:var(--green);
-  transform:translateX(-101%); transition:transform .2s;
+.btn:hover {
+  background: rgba(0,229,255,0.15);
+  border-color: var(--green);
+  color: var(--green);
 }
-.btn:hover::before { transform:translateX(0); }
-.btn:hover { color:#000; }
 .btn:disabled { opacity:.3; cursor:not-allowed; }
 .btn.scn-active {
   background: var(--amber) !important;
@@ -198,8 +197,16 @@ input[type=range]::-webkit-slider-thumb {
   border-color: var(--amber) !important;
 }
 .btn.scn-active::before { display:none; }
+
+/* Scenario buttons hover */
+#scnBtnA:hover, #scnBtnB:hover,
+#scnBtnC:hover, #scnBtnD:hover {
+  background: rgba(255,179,0,0.15);
+  border-color: var(--amber);
+  color: var(--amber);
+}
 .btn.amber { border-color:var(--amber); color:var(--amber); }
-.btn.amber::before { background:var(--amber); }
+.btn.amber:hover { background:rgba(255,179,0,0.15); border-color:var(--amber); color:var(--amber); }
 .btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
 /* LOG */
