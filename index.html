@@ -311,7 +311,7 @@ input[type=range]::-webkit-slider-thumb {
     <div class="ptitle">▶ 即時輻射劑量率</div>
     <div class="dose-big">
       <div class="dose-num" id="doseNum">---</div>
-      <div class="dose-unit">mSv/h</div>
+      <div class="dose-unit" id="doseUnit">μSv/h</div>
     </div>
 
     <!-- Zone display like image -->
@@ -905,9 +905,20 @@ async function applyConfig() {
 // UI UPDATE
 // ============================================================
 function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
-  // Dose display
+  // Dose display - auto switch unit: μSv/h below 0.999 mSv/h, mSv/h above
   const dEl = document.getElementById('doseNum');
-  let dStr = dose>=100 ? dose.toFixed(1) : dose>=10 ? dose.toFixed(2) : dose.toFixed(3);
+  const uEl = document.getElementById('doseUnit');
+  let dStr;
+  if (dose < 0.999) {
+    // Show as μSv/h
+    const uSv = dose * 1000;
+    dStr = uSv >= 100 ? uSv.toFixed(1) : uSv >= 10 ? uSv.toFixed(2) : uSv.toFixed(3);
+    if(uEl) uEl.textContent = 'μSv/h';
+  } else {
+    // Show as mSv/h
+    dStr = dose >= 100 ? dose.toFixed(1) : dose >= 10 ? dose.toFixed(2) : dose.toFixed(3);
+    if(uEl) uEl.textContent = 'mSv/h';
+  }
   dEl.textContent = dStr;
 
   // Zone: dose in mSv/h, thresholds: 0.5 μSv/h = 0.0005 mSv/h, 100 μSv/h = 0.1 mSv/h
