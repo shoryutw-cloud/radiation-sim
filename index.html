@@ -382,72 +382,54 @@ const SHEETS_API = 'https://odd-paper-ab16.shoryu-tw.workers.dev';
 let lastUpdatedAt = '';
 let pollInterval = null;
 
-// Load active config from Google Sheets
+// Load active scenario name from Google Sheets
 async function loadConfigFromSheet() {
   try {
-    const data = await fetchJSONP(SHEETS_API + '?action=getActive');
-    // 情境E = 待機，直接套用不檢查座標
-    if (data.scenario === 'E') {
-      applyScenarioData(data);
-      addLog('✓ 待機中（無情境）');
-      return true;
-    }
-    if (!data.srcLat || isNaN(data.srcLat)) {
-      addLog('⚠ 資料不完整，使用預設值', 'w');
-      return false;
-    }
+    const data = await fetchGAS(SHEETS_API + '?action=getActive');
+    const scenario = data.scenario || 'E';
     const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
     if (changed && lastUpdatedAt !== '') {
-      showUpdateNotify(data.updatedAt, data.scenario);
+      showUpdateNotify(data.updatedAt, scenario);
     }
     lastUpdatedAt = data.updatedAt || lastUpdatedAt;
-    applyScenarioData(data);
-    addLog('✓ 情境' + (data.scenario||'') + ' 載入成功');
+    applyScenario(scenario);
     return true;
   } catch(e) {
-    addLog('⚠ 讀取失敗: ' + e.message + '，嘗試讀取情境A', 'w');
-    return await loadScenarioDirect('A');
+    addLog('⚠ 讀取失敗: ' + e.message, 'w');
+    applyScenario('E');
+    return false;
   }
 }
 
-// Direct fallback: load specific scenario
-async function loadScenarioDirect(scenario) {
-  try {
-    const all = await fetchJSONP(SHEETS_API);
-    if (all && all[scenario] && !isNaN(all[scenario].srcLat)) {
-      applyScenarioData(all[scenario]);
-      addLog('✓ 情境' + scenario + ' 載入成功');
-      return true;
-    }
-  } catch(e) {
-    addLog('⚠ 備用讀取失敗: ' + e.message, 'w');
-  }
-  addLog('⚠ 使用程式預設值', 'w');
-  return false;
-}
-
-// Apply scenario data to CFG
-function applyScenarioData(data) {
+// Apply scenario by name (A/B/C/E)
+function applyScenario(scenario) {
   const lbl = document.getElementById('activeScenarioLabel');
-  if (data.scenario === 'E' || !data.srcLat || data.srcLat === 0) {
-    // Standby mode
+  if (scenario === 'E' || !SCENARIOS[scenario]) {
     if(lbl) lbl.textContent = '待機';
     document.getElementById('doseNum').textContent = '---';
     document.getElementById('doseUnit').textContent = 'μSv/h';
     document.getElementById('distNum').textContent = '---';
+    addLog('待機中（無情境）');
     return;
   }
-  CFG.srcLat    = data.srcLat;
-  CFG.srcLng    = data.srcLng;
-  if(data.srcDose !== undefined && !isNaN(data.srcDose) && data.srcDose > 0) CFG.srcDose = data.srcDose;
-  CFG.windDir   = data.windDir;
-  CFG.windSpeed = data.windSpeed;
-  CFG.sigma     = data.sigma;
-  CFG.refDist   = data.refDist;
-  CFG.refDose   = data.refDose;
+  const s = SCENARIOS[scenario];
+  CFG.srcLat    = s.srcLat;
+  CFG.srcLng    = s.srcLng;
+  CFG.srcDose   = s.srcDose;
+  CFG.windDir   = s.windDir;
+  CFG.windSpeed = s.windSpeed;
+  CFG.sigma     = s.sigma;
+  CFG.refDist   = s.refDist;
+  CFG.refDose   = s.refDose;
   recalcQ();
   syncAdminUI();
-  if(lbl && data.scenario) lbl.textContent = data.scenario;
+  if(lbl) lbl.textContent = scenario;
+  addLog('✓ 情境' + scenario + ' 套用成功');
+}
+
+// applyScenarioData kept for compatibility
+function applyScenarioData(data) {
+  applyScenario(data.scenario || 'E');
 }
 
 // Fetch via Cloudflare Worker (has CORS header)
@@ -475,29 +457,19 @@ async function loadAllScenarios() {
   }
 }
 
-// Save config to Google Sheets via GET params (avoids CORS)
+// Save active scenario to Google Sheets
 async function saveConfigToSheet(cfg, scenario) {
   try {
     const params = new URLSearchParams({
-      action:    'save',
-      scenario:  scenario || 'D',
-      srcLat:    cfg.srcLat,
-      srcLng:    cfg.srcLng,
-      srcDose:   cfg.srcDose,
-      windDir:   cfg.windDir,
-      windSpeed: cfg.windSpeed,
-      sigma:     cfg.sigma,
-      refDist:   cfg.refDist,
-      refDose:   cfg.refDose
+      action:   'save',
+      scenario: scenario || 'E'
     });
     const url = SHEETS_API + '?' + params.toString();
-    addLog('發布情境D中...');
-    const data = await fetchJSONP(url);
+    addLog('發布情境 ' + scenario + ' 中...');
+    const data = await fetchGAS(url);
     if (data.success) {
-      addLog('✓ 情境D 已發布至雲端');
+      addLog('✓ 情境 ' + scenario + ' 已發布至雲端');
       return true;
-    } else {
-      addLog('✕ 發布失敗: ' + text.slice(0,60), 'd');
     }
   } catch(e) {
     addLog('✕ 發布失敗: ' + e.message, 'd');
@@ -514,7 +486,6 @@ function showUpdateNotify(updatedAt, scenario) {
 
 // Sync admin UI inputs from CFG
 function syncAdminUI() {
-  // 面板解鎖中不覆蓋，避免講師輸入被打斷
   const isOpen = document.getElementById('adminBody').classList.contains('open');
   if (isOpen) return;
   document.getElementById('srcLat').value    = CFG.srcLat;
@@ -541,10 +512,31 @@ function startPolling() {
 // ============================================================
 // CONFIG (defaults — overridden by Google Sheets)
 // ============================================================
+// ============================================================
+// 三種預設情境（參數寫在程式裡）
+// ============================================================
+const SCENARIOS = {
+  A: {
+    srcLat: 25.00306850713046, srcLng: 121.52750768428689,
+    srcDose: 500, windDir: 135, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
+  },
+  B: {
+    srcLat: 25.001512297908036, srcLng: 121.52701971950229,
+    srcDose: 500, windDir: 180, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
+  },
+  C: {
+    srcLat: 25.00323684121605, srcLng: 121.52493776685955,
+    srcDose: 500, windDir: 90, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
+  }
+};
+
 let CFG = {
-  srcLat: 25.003327,
+  srcLat: 25.00306850713046,
   srcLng: 121.526629,
-  srcDose: 50,       // mSv/h at source point
+  srcDose: 500,       // mSv/h at source point
   refDist: 70,        // metres at which refDose applies
   refDose: 1,         // mSv/h at refDist
   findRadius: 10,     // metres to trigger "found"
@@ -857,23 +849,17 @@ async function selectScenario(scenario) {
   currentScenario = scenario;
   document.getElementById('scnStatus').textContent = '已選擇情境 ' + scenario + (scenario==='D'?' (自訂)':'') + ' — 請按「套用並發布」生效';
 
-  if (scenario === 'D') {
-    // D is custom, just highlight, don't overwrite fields
-    return;
-  }
   if (scenario === 'E') {
-    // E is standby, no params
     document.getElementById('scnStatus').textContent = '已選擇「無情境」— 按發布後學員畫面將重置';
     return;
   }
 
-  // Load scenario params from sheet
-  addLog('讀取情境 ' + scenario + ' 參數...');
-  const all = await loadAllScenarios();
-  if (all && all[scenario]) {
-    const d = all[scenario];
+  // Load from built-in SCENARIOS
+  if (SCENARIOS[scenario]) {
+    const d = SCENARIOS[scenario];
     document.getElementById('srcLat').value    = d.srcLat;
     document.getElementById('srcLng').value    = d.srcLng;
+    document.getElementById('srcDose').value   = d.srcDose;
     document.getElementById('refDist').value   = d.refDist;
     document.getElementById('refDose').value   = d.refDose;
     document.getElementById('windDir').value   = d.windDir;
@@ -883,8 +869,6 @@ async function selectScenario(scenario) {
     onWindSpeedChange();
     onSigmaChange();
     addLog('✓ 情境 ' + scenario + ' 參數已載入，按發布生效');
-  } else {
-    addLog('⚠ 無法讀取情境 ' + scenario + ' 參數', 'w');
   }
 }
 
@@ -1137,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   addLog('系統啟動，正在讀取雲端情境...');
   loadConfigFromSheet().then(() => {
     drawCompass(135, 500, 0, CFG.windDir);
-    addLog(`模型: 煙羽 · Cs-137 · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
+    addLog(`模型: 高斯煙流 · Cs-137 · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
   });
   startPolling();
 });
@@ -1215,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
       <div style="margin-top:10px;">
-        <button class="btn amber" onclick="applyConfig()">套用並發布情境</button>
+        <button class="btn amber" onclick="applyConfig()">✓ 套用並發布情境</button>
       </div>
       <div style="margin-top:14px;">
         <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
