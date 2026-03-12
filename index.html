@@ -297,37 +297,41 @@ input[type=range]::-webkit-slider-thumb {
     <div class="ptitle">▶ 即時輻射劑量率</div>
     <div class="dose-big">
       <div class="dose-num" id="doseNum">---</div>
-      <div class="dose-unit">mSv/h · MILLISIEVERT PER HOUR</div>
+      <div class="dose-unit">mSv/h</div>
     </div>
 
-    <!-- Zone indicator -->
-    <div id="zoneDisplay" style="
-      text-align:center; margin:14px 0 6px;
-      font-family:'Orbitron',sans-serif; font-size:32px; font-weight:900;
-      letter-spacing:6px; transition:color .4s; text-shadow:0 0 20px currentColor;
-      color:var(--cold);">冷　區</div>
-    <div id="zoneDesc" style="text-align:center;font-size:24px;color:var(--green-dim);letter-spacing:2px;margin-bottom:10px;">
-      &lt; 0.5 μSv/h
-    </div>
-    <div class="level-bar">
-      <div class="level-seg" style="background:var(--cold);flex:2;" id="ls0"></div>
-      <div class="level-seg" style="background:var(--warm);flex:2;" id="ls1"></div>
-      <div class="level-seg" style="background:var(--hot);flex:2;" id="ls2"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:24px;color:rgba(0,229,255,.3);margin-top:4px;letter-spacing:1px;">
-      <span>冷區</span><span>0.5 μSv/h</span><span>暖區</span><span>100 μSv/h</span><span>熱區</span>
+    <!-- Zone display like image -->
+    <div style="margin:14px 0 8px;">
+      <!-- Color bar -->
+      <div style="display:flex;height:8px;gap:2px;margin-bottom:6px;">
+        <div id="ls0" style="flex:1;background:var(--cold);border-radius:2px;transition:opacity .3s;"></div>
+        <div id="ls1" style="flex:1;background:var(--warm);border-radius:2px;transition:opacity .3s;"></div>
+        <div id="ls2" style="flex:1;background:var(--hot);border-radius:2px;transition:opacity .3s;"></div>
+      </div>
+      <!-- Threshold labels row - same line, under dividing points -->
+      <div style="display:flex;position:relative;height:24px;margin-bottom:4px;">
+        <div style="position:absolute;left:33%;transform:translateX(-50%);">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">0.5 μSv/h</span>
+        </div>
+        <div style="position:absolute;left:66%;transform:translateX(-50%);">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">100 μSv/h</span>
+        </div>
+      </div>
+      <!-- Zone buttons row -->
+      <div class="alert-row" style="margin:0;">
+        <div class="adot" id="d0" style="border-color:var(--cold);color:var(--cold);font-size:18px;font-family:'Orbitron',sans-serif;letter-spacing:2px;height:40px;">冷區</div>
+        <div class="adot" id="d1" style="border-color:var(--warm);color:var(--warm);font-size:18px;font-family:'Orbitron',sans-serif;letter-spacing:2px;height:40px;">暖區</div>
+        <div class="adot" id="d2" style="border-color:var(--hot);color:var(--hot);font-size:18px;font-family:'Orbitron',sans-serif;letter-spacing:2px;height:40px;">熱區</div>
+      </div>
     </div>
 
-    <div class="gauge-wrap">
-
+    <!-- Gauge bar (hidden, still used by JS) -->
+    <div style="display:none;">
       <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div></div>
     </div>
-
-    <div class="alert-row" style="margin-top:12px;">
-      <div class="adot" id="d0" style="border-color:var(--cold);color:var(--cold);font-size:17px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">冷區</div>
-      <div class="adot" id="d1" style="border-color:var(--warm);color:var(--warm);font-size:17px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">暖區</div>
-      <div class="adot" id="d2" style="border-color:var(--hot);color:var(--hot);font-size:17px;font-family:'Orbitron',sans-serif;letter-spacing:2px;">熱區</div>
-    </div>
+    <!-- zoneDisplay/zoneDesc hidden, kept for JS -->
+    <div id="zoneDisplay" style="display:none;">冷　區</div>
+    <div id="zoneDesc" style="display:none;">&lt; 0.5 μSv/h</div>
 
     <div class="dist-row">
       <div class="dist-block">
@@ -397,7 +401,7 @@ async function loadConfigFromSheet() {
 async function saveConfigToSheet(cfg) {
   try {
     const params = new URLSearchParams({
-      action: 'save',
+      action:     'save',
       srcLat:     cfg.srcLat,
       srcLng:     cfg.srcLng,
       windDir:    cfg.windDir,
@@ -407,11 +411,17 @@ async function saveConfigToSheet(cfg) {
       refDose:    cfg.refDose,
       findRadius: cfg.findRadius
     });
-    const res = await fetch(SHEETS_API + '?' + params.toString());
-    const data = await res.json();
+    const url = SHEETS_API + '?' + params.toString();
+    addLog('發布中... ' + url.slice(0,60));
+    const res = await fetch(url, {redirect: 'follow'});
+    const text = await res.text();
+    addLog('回應: ' + text.slice(0,80));
+    const data = JSON.parse(text);
     if (data.success) {
       addLog('✓ 情境已發布至雲端');
       return true;
+    } else {
+      addLog('✕ 發布回應異常: ' + text.slice(0,60), 'd');
     }
   } catch(e) {
     addLog('✕ 發布失敗: ' + e.message, 'd');
@@ -447,7 +457,7 @@ function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(() => {
     loadConfigFromSheet();
-  }, 30000);
+  }, 10000);
 }
 
 // ============================================================
