@@ -1137,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   addLog('系統啟動，正在讀取雲端情境...');
   loadConfigFromSheet().then(() => {
     drawCompass(135, 500, 0, CFG.windDir);
-    addLog(`模型: 高斯煙流 · Cs-137 · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
+    addLog(`模型: 煙羽 · Cs-137 · σ=${CFG.sigma}m · 風向${CFG.windDir}°`);
   });
   startPolling();
 });
@@ -1215,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
       <div style="margin-top:10px;">
-        <button class="btn amber" onclick="applyConfig()">✓ 套用並發布情境</button>
+        <button class="btn amber" onclick="applyConfig()">套用並發布情境</button>
       </div>
       <div style="margin-top:14px;">
         <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
