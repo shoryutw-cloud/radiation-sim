@@ -393,17 +393,24 @@ async function loadConfigFromSheet() {
   }
 }
 
-// Save config to Google Sheets
+// Save config to Google Sheets via GET params (avoids CORS)
 async function saveConfigToSheet(cfg) {
   try {
-    const res = await fetch(SHEETS_API, {
-      method: 'POST',
-      body: JSON.stringify(cfg)
+    const params = new URLSearchParams({
+      action: 'save',
+      srcLat:     cfg.srcLat,
+      srcLng:     cfg.srcLng,
+      windDir:    cfg.windDir,
+      windSpeed:  cfg.windSpeed,
+      sigma:      cfg.sigma,
+      refDist:    cfg.refDist,
+      refDose:    cfg.refDose,
+      findRadius: cfg.findRadius
     });
+    const res = await fetch(SHEETS_API + '?' + params.toString());
     const data = await res.json();
     if (data.success) {
-      lastUpdatedAt = data.updatedAt;
-      addLog('✓ 情境已發布至雲端 · ' + data.updatedAt);
+      addLog('✓ 情境已發布至雲端');
       return true;
     }
   } catch(e) {
