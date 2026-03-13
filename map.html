@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>輻射污染範圍地圖</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0f0a; font-family:'Share Tech Mono',monospace; color:#00e5ff; }
+  #map { width:100vw; height:100vh; }
+
+  #header {
+    position:fixed; top:0; left:0; right:0; z-index:1000;
+    background:rgba(0,10,5,0.85); backdrop-filter:blur(8px);
+    padding:10px 16px;
+    border-bottom:1px solid rgba(0,229,255,0.2);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  #header h1 {
+    font-size:16px; letter-spacing:3px; color:#00e5ff;
+  }
+  #scn-badge {
+    font-size:13px; color:#ffb300; letter-spacing:2px;
+    border:1px solid #ffb300; padding:3px 10px; border-radius:2px;
+  }
+
+  #legend {
+    position:fixed; bottom:20px; left:16px; z-index:1000;
+    background:rgba(0,10,5,0.85); backdrop-filter:blur(8px);
+    border:1px solid rgba(0,229,255,0.2); padding:12px 16px;
+    font-size:13px; letter-spacing:1px; line-height:2;
+  }
+  .legend-bar {
+    width:160px; height:12px; margin:4px 0 8px;
+    background: linear-gradient(to right, 
+      rgba(255,255,255,0.05),
+      rgba(255,220,0,0.4),
+      rgba(255,100,0,0.7),
+      rgba(200,0,0,0.9)
+    );
+    border-radius:2px;
+  }
+  .legend-labels {
+    display:flex; justify-content:space-between;
+    font-size:11px; color:rgba(0,229,255,0.6);
+  }
+
+  #info-panel {
+    position:fixed; bottom:20px; right:16px; z-index:1000;
+    background:rgba(0,10,5,0.85); backdrop-filter:blur(8px);
+    border:1px solid rgba(0,229,255,0.2); padding:12px 16px;
+    font-size:12px; letter-spacing:1px; line-height:2; min-width:200px;
+  }
+  #info-panel .label { color:rgba(0,229,255,0.5); }
+  #info-panel .val { color:#00e5ff; }
+
+  #loading {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:2000; font-size:16px; letter-spacing:4px; color:#ffb300;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>☢ 輻射污染範圍模擬</h1>
+  <div id="scn-badge">情境 ---</div>
+</div>
+
+<div id="map"></div>
+
+<div id="legend">
+  <div style="color:rgba(0,229,255,0.6);margin-bottom:4px;">劑量強度</div>
+  <div class="legend-bar"></div>
+  <div class="legend-labels">
+    <span>低</span><span>→</span><span>高</span>
+  </div>
+  <div style="margin-top:8px;font-size:11px;color:rgba(0,229,255,0.4);">
+    ● 紅色 = 爆炸點<br>
+    ● 暖色 = 下風向高污染<br>
+    ● 冷色 = 低劑量區
+  </div>
+</div>
+
+<div id="info-panel">
+  <div><span class="label">情境: </span><span class="val" id="inf-scn">---</span></div>
+  <div><span class="label">射源: </span><span class="val" id="inf-src">---</span></div>
+  <div><span class="label">風向: </span><span class="val" id="inf-wind">---</span></div>
+  <div><span class="label">風速: </span><span class="val" id="inf-speed">---</span></div>
+  <div><span class="label">σ: </span><span class="val" id="inf-sigma">---</span></div>
+</div>
+
+<div id="loading">載入中...</div>
+
+<script>
+// ============================================================
+// 與 index.html 共用的情境設定
+// ============================================================
+const SHEETS_API = 'https://odd-paper-ab16.shoryu-tw.workers.dev';
+
+const SCENARIOS = {
+  A: {
+    name: '核安會後門',
+    srcLat: 25.003176, srcLng: 121.526209,
+    srcDose: 500, windDir: 180, windSpeed: 4,
+    sigma: 10, refDist: 37, refDose: 0.0005
+  },
+  B: {
+    name: '',
+    srcLat: 25.001512297908036, srcLng: 121.52701971950229,
+    srcDose: 500, windDir: 180, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
+  },
+  C: {
+    name: '',
+    srcLat: 25.00323684121605, srcLng: 121.52493776685955,
+    srcDose: 500, windDir: 90, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
+  }
+};
+
+// ============================================================
+// 物理模型（同 index.html）
+// ============================================================
+function calcQ(srcDose, windSpeed, sigma, refDist, refDose, windDir) {
+  // Back-calculate Q from reference point
+  const windRad = (windDir - 90) * Math.PI / 180;
+  const dx = refDist * Math.cos(windRad);
+  const dy = refDist * Math.sin(windRad);
+  const crosswind = 0; // on-axis
+  const gaussian = Math.exp(-0.5 * (crosswind / sigma) ** 2);
+  const invSq = 1 / (refDist * refDist);
+  return refDose / (gaussian * invSq);
+}
+
+function calcDose(lat, lng, cfg) {
+  const R = 6371000;
+  const dLat = (lat - cfg.srcLat) * Math.PI / 180;
+  const dLng = (lng - cfg.srcLng) * Math.PI / 180;
+  const x = dLng * R * Math.cos(cfg.srcLat * Math.PI / 180);
+  const y = dLat * R;
+  const distM = Math.sqrt(x * x + y * y);
+
+  if (distM < 0.5) return cfg.srcDose;
+
+  // Rotate to wind coordinate
+  const windRad = (cfg.windDir - 90) * Math.PI / 180;
+  const along = x * Math.cos(windRad) + y * Math.sin(windRad);
+  const cross = -x * Math.sin(windRad) + y * Math.cos(windRad);
+
+  const BACKGROUND = 0.0001;
+  if (along <= 0) {
+    // upwind
+    const dose = cfg.srcDose / (distM * distM) * cfg.Q * 0.08;
+    return Math.max(BACKGROUND, Math.min(dose, cfg.srcDose));
+  }
+
+  const gaussian = Math.exp(-0.5 * (cross / cfg.sigma) ** 2);
+  const dose = cfg.Q * gaussian / (distM * distM);
+  return Math.max(BACKGROUND, Math.min(dose, cfg.srcDose));
+}
+
+// ============================================================
+// Map
+// ============================================================
+const map = L.map('map', { zoomControl: true });
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+let heatLayer = null;
+let sourceMarker = null;
+
+function doseToColor(dose, maxDose) {
+  const t = Math.min(Math.log1p(dose) / Math.log1p(maxDose), 1);
+  if (t < 0.25) {
+    const r = Math.round(255 * (t / 0.25));
+    return `rgba(${r},255,${255-r},${0.1 + t * 0.3})`;
+  } else if (t < 0.5) {
+    const s = (t - 0.25) / 0.25;
+    return `rgba(255,${Math.round(255*(1-s))},0,${0.3 + s * 0.2})`;
+  } else if (t < 0.75) {
+    const s = (t - 0.5) / 0.25;
+    return `rgba(255,${Math.round(100*(1-s))},0,${0.5 + s * 0.2})`;
+  } else {
+    const s = (t - 0.75) / 0.25;
+    return `rgba(${Math.round(255*(1-s*0.3))},0,0,${0.7 + s * 0.25})`;
+  }
+}
+
+function drawMap(scenarioKey) {
+  const s = SCENARIOS[scenarioKey];
+  if (!s) return;
+
+  // Calculate Q
+  s.Q = calcQ(s.srcDose, s.windSpeed, s.sigma, s.refDist, s.refDose, s.windDir);
+
+  // Update info panel
+  document.getElementById('scn-badge').textContent = '情境 ' + scenarioKey;
+  document.getElementById('inf-scn').textContent = scenarioKey + (s.name ? ' · ' + s.name : '');
+  document.getElementById('inf-src').textContent = s.srcLat.toFixed(5) + ', ' + s.srcLng.toFixed(5);
+  const dirs = ['北','東北','東','東南','南','西南','西','西北'];
+  const dirName = dirs[Math.round(s.windDir / 45) % 8];
+  document.getElementById('inf-wind').textContent = s.windDir + '° (' + dirName + ')';
+  document.getElementById('inf-speed').textContent = s.windSpeed + ' m/s';
+  document.getElementById('inf-sigma').textContent = s.sigma + ' m';
+
+  // Center map
+  map.setView([s.srcLat, s.srcLng], 18);
+
+  // Remove old layers
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (sourceMarker) { map.removeLayer(sourceMarker); sourceMarker = null; }
+
+  // Draw grid of colored circles
+  const gridSize = 200; // points per side
+  const rangeM = 300;   // meters from source to cover
+  const R = 6371000;
+
+  // Remove old circles
+  if (window._circles) window._circles.forEach(c => map.removeLayer(c));
+  window._circles = [];
+
+  const step = (rangeM * 2) / gridSize;
+  let maxDose = s.srcDose;
+
+  // Pre-calculate doses
+  const points = [];
+  for (let ix = 0; ix <= gridSize; ix++) {
+    for (let iy = 0; iy <= gridSize; iy++) {
+      const dx = -rangeM + ix * step;
+      const dy = -rangeM + iy * step;
+      const lat = s.srcLat + (dy / R) * (180 / Math.PI);
+      const lng = s.srcLng + (dx / R) * (180 / Math.PI) / Math.cos(s.srcLat * Math.PI / 180);
+      const dose = calcDose(lat, lng, s);
+      if (dose > 0.0002) points.push({lat, lng, dose});
+    }
+  }
+
+  // Draw as canvas overlay using Leaflet SVG
+  points.forEach(p => {
+    const color = doseToColor(p.dose, maxDose);
+    const radius = step * R * Math.PI / 180 * 0.6;
+    const circle = L.circle([p.lat, p.lng], {
+      radius: step * 0.7,
+      color: 'none',
+      fillColor: color,
+      fillOpacity: 1,
+      weight: 0
+    }).addTo(map);
+    window._circles.push(circle);
+  });
+
+  // Source marker
+  sourceMarker = L.circleMarker([s.srcLat, s.srcLng], {
+    radius: 12,
+    color: '#ff0000',
+    fillColor: '#ff0000',
+    fillOpacity: 0.9,
+    weight: 3
+  }).addTo(map).bindPopup(`
+    <b>☢ 爆炸點</b><br>
+    情境 ${scenarioKey}${s.name ? ' · ' + s.name : ''}<br>
+    劑量: ${s.srcDose} mSv/h<br>
+    風向: ${s.windDir}° · 風速: ${s.windSpeed} m/s
+  `).openPopup();
+
+  document.getElementById('loading').style.display = 'none';
+}
+
+// ============================================================
+// Load active scenario from cloud
+// ============================================================
+async function loadAndDraw() {
+  try {
+    const res = await fetch(SHEETS_API, { mode:'cors', cache:'no-cache' });
+    const data = await res.json();
+    const scenario = data.scenario || 'A';
+    if (SCENARIOS[scenario]) {
+      drawMap(scenario);
+    } else {
+      drawMap('A');
+    }
+  } catch(e) {
+    console.warn('讀取失敗，使用情境A', e);
+    drawMap('A');
+  }
+}
+
+loadAndDraw();
+
+// Re-poll every 30s
+setInterval(loadAndDraw, 30000);
+</script>
+</body>
+</html>
