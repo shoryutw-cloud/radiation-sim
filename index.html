@@ -302,7 +302,7 @@ input[type=range]::-webkit-slider-thumb {
       <div>更新時間<span id="gpsTime">---</span></div>
     </div>
     <div style="margin-top:10px;">
-      <button class="btn" id="btnStart" onclick="startGPS()">▶ 啟動 GPS 定位</button>
+      <button class="btn" id="btnStart" onclick="startGPS()">▶ 啟動 GPS 探測</button>
     </div>
   </div>
 
@@ -505,7 +505,7 @@ const SCENARIOS = {
   A: {
     name: '核安會後門',
     srcLat: 25.003176, srcLng: 121.526209,
-    srcDose: 500, windDir: 180, windSpeed: 4,
+    srcDose: 3, windDir: 180, windSpeed: 4,
     sigma: 10, refDist: 37, refDose: 0.0005
   },
   B: {
