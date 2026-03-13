@@ -184,7 +184,6 @@ input[type=range]::-webkit-slider-thumb {
   font-family:'Share Tech Mono',monospace; font-size:24px; letter-spacing:3px;
   padding:12px; border:1px solid var(--green-dim); background:transparent;
   color:var(--green); cursor:pointer; width:100%; transition:all .2s;
-  text-transform:uppercase;
 }
 .btn:hover {
   background: rgba(0,229,255,0.15);
@@ -1110,11 +1109,11 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
         <button class="btn" id="scnBtnA" onclick="selectScenario('A')" style="text-align:left;padding:10px 12px;height:auto;">
           <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 A</div>
-          <div style="font-size:12px;letter-spacing:1px;opacity:0.8;line-height:1.9;font-family:'Share Tech Mono',monospace;">
+          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
             地點: 核安會後門<br>
             緯度: 25.003176<br>
             經度: 121.526209<br>
-            爆炸點劑量: 500 mSv/h<br>
+            爆炸點劑量: 3 mSv/h<br>
             風向: 180°（南）<br>
             風速: 4 m/s<br>
             擴散寬度σ: 10 m<br>
@@ -1124,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
         <button class="btn" id="scnBtnB" onclick="selectScenario('B')" style="text-align:left;padding:10px 12px;height:auto;">
           <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 B</div>
-          <div style="font-size:12px;letter-spacing:1px;opacity:0.8;line-height:1.9;font-family:'Share Tech Mono',monospace;">
+          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
             地點:<br>
             緯度: 25.00151<br>
             經度: 121.52702<br>
@@ -1138,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
         <button class="btn" id="scnBtnC" onclick="selectScenario('C')" style="text-align:left;padding:10px 12px;height:auto;">
           <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 C</div>
-          <div style="font-size:12px;letter-spacing:1px;opacity:0.8;line-height:1.9;font-family:'Share Tech Mono',monospace;">
+          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
             地點:<br>
             緯度: 25.00324<br>
             經度: 121.52494<br>
