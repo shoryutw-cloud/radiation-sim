@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>☢ 輻射彈爆炸污染擴散模擬</title>
+<title>偵檢模擬器</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -284,7 +284,7 @@ input[type=range]::-webkit-slider-thumb {
 
 <div class="wrap">
   <div class="hdr">
-    <h1>輻射彈爆炸污染擴散模擬 &nbsp;·&nbsp; 情境 <span id="activeScenarioLabel">---</span></h1>
+    <h1>偵檢模擬器 &nbsp;·&nbsp; 情境 <span id="activeScenarioLabel">---</span></h1>
   </div>
 
   <!-- GPS -->
@@ -292,7 +292,7 @@ input[type=range]::-webkit-slider-thumb {
     <div class="ptitle">▶ GPS 定位狀態</div>
     <div class="gps-row">
       <div class="gps-dot" id="gpsDot"></div>
-      <span id="gpsMsg">點擊下方按鈕啟動 GPS</span>
+      <span id="gpsMsg">正在請求定位授權...</span>
     </div>
     <div class="info-grid">
       <div>我的緯度<span id="myLat">---</span></div>
@@ -300,9 +300,7 @@ input[type=range]::-webkit-slider-thumb {
       <div>GPS 精度<span id="myAcc">--- m</span></div>
       <div>更新時間<span id="gpsTime">---</span></div>
     </div>
-    <div style="margin-top:10px;">
-      <button class="btn" id="btnStart" onclick="startGPS()">▶ 啟動 GPS 定位</button>
-    </div>
+
   </div>
 
   <!-- DOSE -->
@@ -970,7 +968,6 @@ function startGPS() {
     return;
   }
 
-  document.getElementById('btnStart').disabled=true;
   document.getElementById('gpsMsg').textContent='正在請求定位授權...';
 
   // Try permissions API first to check status
@@ -980,8 +977,7 @@ function startGPS() {
         addLog('✕ GPS 已被封鎖，請至手機設定 > Chrome > 位置 > 改為允許','d');
         document.getElementById('gpsMsg').textContent='GPS 被封鎖，請至設定開啟';
         document.getElementById('gpsDot').className='gps-dot err';
-        document.getElementById('btnStart').disabled=false;
-        return;
+              return;
       }
     }).catch(()=>{});
   }
@@ -1046,11 +1042,8 @@ function onErr(e) {
   document.getElementById('gpsDot').className='gps-dot err';
   const msg = m[e.code] || `GPS 錯誤 (code:${e.code})`;
   document.getElementById('gpsMsg').textContent=msg;
-  document.getElementById('btnStart').disabled=false;
   addLog(`✕ ${msg} (錯誤碼:${e.code} ${e.message||''})`, 'd');
 
-  // Re-enable button to retry
-  setTimeout(()=>{ document.getElementById('btnStart').disabled=false; }, 1000);
 }
 
 // ============================================================
@@ -1082,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawCompass(135, 500, 0, CFG.windDir);
   });
   startPolling();
+  startGPS();
 });
 </script>
 
