@@ -1166,6 +1166,10 @@ const REPORT_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0
 let _rptEvents = [];
 let _rptCurEv  = null;
 let _rptJsonpCounter = 0;
+// 記憶上次回報的選擇，下次開啟 Modal 時自動帶入
+let _rptLastEventId   = null;
+let _rptLastReporter  = '';
+let _rptLastInstrument = '';
 
 // JSONP 工具函數（與 measurement-report.html 相同，用於繞過 CORS）
 function _rptJsonpGet(url, cb) {
@@ -1227,6 +1231,14 @@ function loadRptEvents() {
       _rptEvents.map(function(ev, i) {
         return `<option value="${i}">${ev.name}（${ev.type||''}）</option>`;
       }).join('');
+    // 若有上次記憶的事件，自動選回並觸發人員/儀器填入
+    if (_rptLastEventId) {
+      const lastIdx = _rptEvents.findIndex(ev => ev.id === _rptLastEventId);
+      if (lastIdx > -1) {
+        sel.value = String(lastIdx);
+        onRptEventChange(); // 填入人員/儀器清單後再套用記憶
+      }
+    }
   });
 }
 
@@ -1268,6 +1280,26 @@ function onRptEventChange() {
   instrumentSel.innerHTML = '<option value="">— 不指定 —</option>' +
     instrNames.map(n => `<option value="${n}">${n}</option>`).join('');
 
+  // 若有上次記憶的人員/儀器，自動選回
+  if (_rptLastReporter) {
+    const rSel = document.getElementById('rptSelReporter');
+    // 找到對應 option 才設值
+    for (let i = 0; i < rSel.options.length; i++) {
+      if (rSel.options[i].value === _rptLastReporter) {
+        rSel.value = _rptLastReporter;
+        break;
+      }
+    }
+  }
+  if (_rptLastInstrument) {
+    const iSel = document.getElementById('rptSelInstrument');
+    for (let i = 0; i < iSel.options.length; i++) {
+      if (iSel.options[i].value === _rptLastInstrument) {
+        iSel.value = _rptLastInstrument;
+        break;
+      }
+    }
+  }
   onRptValidate();
 }
 
@@ -1317,10 +1349,14 @@ function submitReportFromSim() {
     document.getElementById('rptStatus').innerHTML =
       `<span style="color:var(--lime)">✓ 回報成功！${doseUsv} μSv/h 已送出</span>`;
     addLog(`✓ 回報成功：${doseUsv} μSv/h ／ ${payload.reporter}`, '');
+    // 記憶本次選擇，供下次回報預設使用
+    _rptLastEventId    = payload.eventId;
+    _rptLastReporter   = payload.reporter;
+    _rptLastInstrument = payload.instrument;
     btn.textContent  = '✓ 已送出';
     btn.style.opacity = '0.5';
     // 2 秒後自動關閉 Modal
-    setTimeout(closeReportModal, 2000);
+    setTimeout(closeReportModal, 1000);
   })
   .catch(function(err) {
     document.getElementById('rptStatus').innerHTML =
