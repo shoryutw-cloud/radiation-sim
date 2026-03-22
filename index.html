@@ -286,19 +286,12 @@ input[type=range]::-webkit-slider-thumb {
     <h1>偵檢模擬器 &nbsp;·&nbsp; 情境 <span id="activeScenarioLabel">---</span></h1>
   </div>
 
-  <!-- GPS -->
-  <div class="panel">
-    <div class="ptitle">▶ GPS 定位狀態</div>
-    <div class="gps-row">
-      <div class="gps-dot" id="gpsDot"></div>
-      <span id="gpsMsg">GPS 定位中...</span>
-    </div>
-    <div class="info-grid">
-      <div>我的緯度<span id="myLat">---</span></div>
-      <div>我的經度<span id="myLng">---</span></div>
-
-    </div>
-
+  <!-- GPS 面板隱藏：不顯示但背景持續定位，元素保留供 JS 使用 -->
+  <div style="display:none;">
+    <div class="gps-dot" id="gpsDot"></div>
+    <span id="gpsMsg"></span>
+    <span id="myLat"></span>
+    <span id="myLng"></span>
   </div>
 
   <!-- DOSE -->
