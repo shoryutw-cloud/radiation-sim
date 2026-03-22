@@ -713,6 +713,7 @@ let cumDose = 0;
 let lastUpdateMs = null;
 let foundSource = false;
 let watchId = null;
+let lastDoseMsv = null; // 最新一次計算的劑量（單位：mSv/h），供回報使用
 
 // ============================================================
 // GEIGER CANVAS
@@ -1101,6 +1102,7 @@ function onPos(pos) {
   const bearingToSrc = bearing(lat,lng,CFG.srcLat,CFG.srcLng);
   const bearingFromSrc = bearing(CFG.srcLat,CFG.srcLng,lat,lng);
   const dose = calcDose(distM, bearingFromSrc);
+  lastDoseMsv = dose; // 儲存原始 mSv/h 數值，回報時直接使用不需從 DOM 反推
 
   // Cumulative
   const now=Date.now();
@@ -1177,23 +1179,18 @@ function _rptJsonpGet(url, cb) {
 
 // 開啟回報 Modal
 function openReportModal() {
-  // 取得當前劑量（mSv/h），轉換成 μSv/h
-  const doseText = document.getElementById('doseNum').textContent;
-  const doseMsv  = parseFloat(doseText);
-
-  // 檢查是否有有效數值
-  if (isNaN(doseMsv) || doseText === '---') {
+  // 直接使用全域 lastDoseMsv（mSv/h），不從 DOM 反推避免單位重複換算
+  if (lastDoseMsv === null) {
     alert('目前尚無有效劑量數值，請等待 GPS 定位後再試。');
     return;
   }
 
-  // 填入預覽區
-  const doseUsv  = (doseMsv * 1000).toFixed(3); // mSv/h → μSv/h
+  // 換算成 μSv/h 供回報和預覽使用
+  const doseUsv  = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
   const latText  = myPos ? myPos.lat.toFixed(6) : '---';
   const lngText  = myPos ? myPos.lng.toFixed(6) : '---';
   document.getElementById('rptPreview').innerHTML =
     `劑量率：<span style="color:var(--lime);font-size:16px;">${doseUsv} μSv/h</span>` +
-    `<br>原始值：${doseMsv.toFixed(4)} mSv/h × 1000` +
     `<br>GPS：${latText}, ${lngText}`;
 
   // 重置狀態
@@ -1294,9 +1291,8 @@ function submitReportFromSim() {
   btn.style.opacity = '0.4';
   btn.textContent  = '⏳ 送出中…';
 
-  // 取得即時數值並換算
-  const doseMsv = parseFloat(document.getElementById('doseNum').textContent);
-  const doseUsv = (doseMsv * 1000).toFixed(3); // mSv/h → μSv/h
+  // 直接使用全域 lastDoseMsv（mSv/h），不從 DOM 反推避免單位重複換算
+  const doseUsv = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
 
   const payload = {
     action:     'addMeasurement',
