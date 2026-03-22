@@ -377,70 +377,70 @@ input[type=range]::-webkit-slider-thumb {
   background:rgba(0,0,0,0.85); align-items:center; justify-content:center;">
   <div style="
     background:#030c10; border:1px solid var(--lime);
-    max-width:340px; width:92%; padding:20px;
+    max-width:380px; width:92%; padding:22px;
     box-shadow:0 0 30px rgba(118,255,3,0.2);
     font-family:'Share Tech Mono',monospace; position:relative;">
 
     <!-- 標題列 -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:3px;color:var(--lime);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div style="font-family:'Orbitron',sans-serif;font-size:18px;letter-spacing:3px;color:var(--lime);">
         📤 回報量測數值
       </div>
       <button onclick="closeReportModal()" style="
         background:none;border:none;color:var(--green-dim);
-        font-size:18px;cursor:pointer;line-height:1;">✕</button>
+        font-size:22px;cursor:pointer;line-height:1;">✕</button>
     </div>
 
     <!-- 即將送出的數值預覽 -->
     <div id="rptPreview" style="
       background:#000d05;border:1px solid var(--green-dark);
-      padding:12px;margin-bottom:14px;font-size:13px;
+      padding:14px;margin-bottom:16px;font-size:17px;
       color:var(--green-dim);line-height:2.2;letter-spacing:1px;">
     </div>
 
     <!-- 選擇事件 -->
-    <div style="margin-bottom:10px;">
-      <div style="font-size:11px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+    <div style="margin-bottom:12px;">
+      <div style="font-size:15px;color:var(--green-dim);letter-spacing:2px;margin-bottom:6px;">
         選擇事件 <span style="color:var(--red)">*</span>
       </div>
       <select id="rptSelEvent" onchange="onRptEventChange()" style="
         width:100%;background:#000;border:1px solid var(--green-dark);
-        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:13px;
-        padding:8px;outline:none;">
+        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+        padding:10px;outline:none;">
         <option value="">— 載入中 —</option>
       </select>
     </div>
 
     <!-- 選擇回報人員 -->
-    <div style="margin-bottom:10px;" id="rptReporterWrap">
-      <div style="font-size:11px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+    <div style="margin-bottom:12px;" id="rptReporterWrap">
+      <div style="font-size:15px;color:var(--green-dim);letter-spacing:2px;margin-bottom:6px;">
         回報人員 <span style="color:var(--red)">*</span>
       </div>
       <select id="rptSelReporter" onchange="onRptValidate()" style="
         width:100%;background:#000;border:1px solid var(--green-dark);
-        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:13px;
-        padding:8px;outline:none;">
+        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+        padding:10px;outline:none;">
         <option value="">— 請先選擇事件 —</option>
       </select>
     </div>
 
     <!-- 選擇儀器（選填） -->
-    <div style="margin-bottom:14px;" id="rptInstrWrap">
-      <div style="font-size:11px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+    <div style="margin-bottom:18px;" id="rptInstrWrap">
+      <div style="font-size:15px;color:var(--green-dim);letter-spacing:2px;margin-bottom:6px;">
         使用儀器
       </div>
       <select id="rptSelInstrument" style="
         width:100%;background:#000;border:1px solid var(--green-dark);
-        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:13px;
-        padding:8px;outline:none;">
+        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+        padding:10px;outline:none;">
         <option value="">— 不指定 —</option>
       </select>
     </div>
 
     <!-- 送出按鈕 -->
     <button id="rptBtnSubmit" onclick="submitReportFromSim()" disabled style="
-      width:100%;padding:11px;font-family:'Share Tech Mono',monospace;
-      font-size:14px;letter-spacing:3px;border:1px solid var(--lime);
+      width:100%;padding:14px;font-family:'Share Tech Mono',monospace;
+      font-size:18px;letter-spacing:3px;border:1px solid var(--lime);
       background:transparent;color:var(--lime);cursor:pointer;
       transition:all .2s;opacity:0.4;"
       onmouseover="if(!this.disabled)this.style.background='rgba(118,255,3,0.15)'"
@@ -450,8 +450,8 @@ input[type=range]::-webkit-slider-thumb {
 
     <!-- 送出狀態訊息 -->
     <div id="rptStatus" style="
-      margin-top:10px;text-align:center;font-size:12px;
-      color:var(--green-dim);letter-spacing:1px;min-height:18px;">
+      margin-top:12px;text-align:center;font-size:16px;
+      color:var(--green-dim);letter-spacing:1px;min-height:20px;">
     </div>
   </div>
 </div>
