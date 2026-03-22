@@ -1092,8 +1092,8 @@ function onPos(pos) {
 
   document.getElementById('myLat').textContent=lat.toFixed(6);
   document.getElementById('myLng').textContent=lng.toFixed(6);
-  document.getElementById('myAcc').textContent=`${Math.round(acc)} m`;
-  document.getElementById('gpsTime').textContent=new Date().toTimeString().slice(0,8);
+  const accEl = document.getElementById('myAcc'); if(accEl) accEl.textContent=`${Math.round(acc)} m`;
+  const timeEl = document.getElementById('gpsTime'); if(timeEl) timeEl.textContent=new Date().toTimeString().slice(0,8);
   document.getElementById('gpsDot').className='gps-dot on';
   document.getElementById('gpsMsg').textContent=`GPS 連接中 · 精度 ±${Math.round(acc)}m`;
 
