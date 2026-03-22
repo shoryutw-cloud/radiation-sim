@@ -374,84 +374,87 @@ input[type=range]::-webkit-slider-thumb {
 <!-- ============================================================ -->
 <div id="reportModal" style="
   display:none; position:fixed; inset:0; z-index:3000;
-  background:rgba(0,0,0,0.85); align-items:center; justify-content:center;">
+  background:rgba(0,0,0,0.75); align-items:center; justify-content:center;">
   <div style="
-    background:#030c10; border:1px solid var(--lime);
-    max-width:380px; width:92%; padding:22px;
-    box-shadow:0 0 30px rgba(118,255,3,0.2);
-    font-family:'Share Tech Mono',monospace; position:relative;">
+    background:#ffffff; border-radius:14px;
+    max-width:400px; width:92%; padding:24px;
+    box-shadow:0 8px 40px rgba(0,0,0,0.5);
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
+    position:relative;">
 
     <!-- 標題列 -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-      <div style="font-family:'Orbitron',sans-serif;font-size:18px;letter-spacing:3px;color:var(--lime);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;
+      padding-bottom:16px;border-bottom:2px solid #e5e7eb;">
+      <div style="font-size:20px;font-weight:700;color:#111827;letter-spacing:1px;">
         📤 回報量測數值
       </div>
       <button onclick="closeReportModal()" style="
-        background:none;border:none;color:var(--green-dim);
-        font-size:22px;cursor:pointer;line-height:1;">✕</button>
+        background:none;border:none;color:#6b7280;
+        font-size:26px;cursor:pointer;line-height:1;padding:0 4px;">✕</button>
     </div>
 
     <!-- 即將送出的數值預覽 -->
     <div id="rptPreview" style="
-      background:#000d05;border:1px solid var(--green-dark);
-      padding:14px;margin-bottom:16px;font-size:17px;
-      color:var(--green-dim);line-height:2.2;letter-spacing:1px;">
+      background:#f0fdf4;border:2px solid #86efac;border-radius:10px;
+      padding:16px;margin-bottom:20px;font-size:18px;
+      color:#166534;line-height:2;letter-spacing:0;">
     </div>
 
     <!-- 選擇事件 -->
-    <div style="margin-bottom:12px;">
-      <div style="font-size:15px;color:var(--green-dim);letter-spacing:2px;margin-bottom:6px;">
-        選擇事件 <span style="color:var(--red)">*</span>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:7px;">
+        選擇事件 <span style="color:#dc2626">*</span>
       </div>
       <select id="rptSelEvent" onchange="onRptEventChange()" style="
-        width:100%;background:#000;border:1px solid var(--green-dark);
-        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
-        padding:10px;outline:none;">
+        width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
+        color:#111827;font-family:inherit;font-size:18px;
+        padding:11px 12px;outline:none;cursor:pointer;">
         <option value="">— 載入中 —</option>
       </select>
     </div>
 
     <!-- 選擇回報人員 -->
-    <div style="margin-bottom:12px;" id="rptReporterWrap">
-      <div style="font-size:15px;color:var(--green-dim);letter-spacing:2px;margin-bottom:6px;">
-        回報人員 <span style="color:var(--red)">*</span>
+    <div style="margin-bottom:16px;" id="rptReporterWrap">
+      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:7px;">
+        回報人員 <span style="color:#dc2626">*</span>
       </div>
       <select id="rptSelReporter" onchange="onRptValidate()" style="
-        width:100%;background:#000;border:1px solid var(--green-dark);
-        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
-        padding:10px;outline:none;">
+        width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
+        color:#111827;font-family:inherit;font-size:18px;
+        padding:11px 12px;outline:none;cursor:pointer;">
         <option value="">— 請先選擇事件 —</option>
       </select>
     </div>
 
     <!-- 選擇儀器（選填） -->
-    <div style="margin-bottom:18px;" id="rptInstrWrap">
-      <div style="font-size:15px;color:var(--green-dim);letter-spacing:2px;margin-bottom:6px;">
-        使用儀器
+    <div style="margin-bottom:22px;" id="rptInstrWrap">
+      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:7px;">
+        使用儀器 <span style="font-size:13px;color:#9ca3af;font-weight:400">（選填）</span>
       </div>
       <select id="rptSelInstrument" style="
-        width:100%;background:#000;border:1px solid var(--green-dark);
-        color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
-        padding:10px;outline:none;">
+        width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
+        color:#111827;font-family:inherit;font-size:18px;
+        padding:11px 12px;outline:none;cursor:pointer;">
         <option value="">— 不指定 —</option>
       </select>
     </div>
 
     <!-- 送出按鈕 -->
     <button id="rptBtnSubmit" onclick="submitReportFromSim()" disabled style="
-      width:100%;padding:14px;font-family:'Share Tech Mono',monospace;
-      font-size:18px;letter-spacing:3px;border:1px solid var(--lime);
-      background:transparent;color:var(--lime);cursor:pointer;
-      transition:all .2s;opacity:0.4;"
-      onmouseover="if(!this.disabled)this.style.background='rgba(118,255,3,0.15)'"
-      onmouseout="this.style.background='transparent'">
+      width:100%;padding:15px;font-family:inherit;
+      font-size:19px;font-weight:700;letter-spacing:1px;
+      border:none;border-radius:10px;cursor:pointer;
+      background:#16a34a;color:#ffffff;
+      transition:all .2s;opacity:0.35;"
+      onmouseover="if(!this.disabled)this.style.background='#15803d'"
+      onmouseout="if(!this.disabled)this.style.background='#16a34a'">
       📤 確認送出
     </button>
 
     <!-- 送出狀態訊息 -->
     <div id="rptStatus" style="
-      margin-top:12px;text-align:center;font-size:16px;
-      color:var(--green-dim);letter-spacing:1px;min-height:20px;">
+      margin-top:14px;text-align:center;font-size:17px;
+      color:#6b7280;letter-spacing:0;min-height:22px;">
     </div>
   </div>
 </div>
@@ -1194,7 +1197,7 @@ function openReportModal() {
   const latText  = myPos ? myPos.lat.toFixed(6) : '---';
   const lngText  = myPos ? myPos.lng.toFixed(6) : '---';
   document.getElementById('rptPreview').innerHTML =
-    `劑量率：<span style="color:var(--lime);font-size:16px;">${doseUsv} μSv/h</span>` +
+    `劑量率：<span style="color:#15803d;font-size:22px;font-weight:700;">${doseUsv} μSv/h</span>` +
     `<br>GPS：${latText}, ${lngText}`;
 
   // 重置狀態
@@ -1347,7 +1350,7 @@ function submitReportFromSim() {
   .then(function() {
     // no-cors 模式下無法讀取 response，視為成功
     document.getElementById('rptStatus').innerHTML =
-      `<span style="color:var(--lime)">✓ 回報成功！${doseUsv} μSv/h 已送出</span>`;
+      `<span style="color:#16a34a;font-weight:600">✓ 回報成功！${doseUsv} μSv/h 已送出</span>`;
     addLog(`✓ 回報成功：${doseUsv} μSv/h ／ ${payload.reporter}`, '');
     // 記憶本次選擇，供下次回報預設使用
     _rptLastEventId    = payload.eventId;
@@ -1360,7 +1363,7 @@ function submitReportFromSim() {
   })
   .catch(function(err) {
     document.getElementById('rptStatus').innerHTML =
-      `<span style="color:var(--red)">✕ 送出失敗，請確認網路</span>`;
+      `<span style="color:#dc2626;font-weight:600">✕ 送出失敗，請確認網路</span>`;
     addLog('✕ 回報失敗: ' + err.message, 'd');
     btn.disabled     = false;
     btn.style.opacity = '1';
