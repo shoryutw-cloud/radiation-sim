@@ -108,14 +108,14 @@ body::before {
 .info-grid span { color:var(--green); font-size:19px; display:block; margin-top:2px; }
 
 /* DOSE BIG */
-.dose-big { text-align:center; padding:10px 0 6px; }
+.dose-big { text-align:center; padding:4px 0 2px; }
 .dose-num {
   font-family:'Orbitron',sans-serif;
-  font-size:58px; font-weight:900; line-height:1;
+  font-size:48px; font-weight:900; line-height:1;
   transition: color .4s;
   text-shadow: 0 0 40px currentColor;
 }
-.dose-unit { font-size:24px; color:var(--green-dim); letter-spacing:3px; margin-top:4px; }
+.dose-unit { font-size:20px; color:var(--green-dim); letter-spacing:3px; margin-top:2px; }
 
 .dist-row {
   display:flex; justify-content:space-between; align-items:center;
@@ -297,13 +297,13 @@ input[type=range]::-webkit-slider-thumb {
   <!-- DOSE -->
   <div class="panel">
     <div class="ptitle">▶ 即時輻射劑量率</div>
-    <div class="dose-big">
+    <div class="dose-big" style="display:flex;align-items:baseline;justify-content:center;gap:10px;">
       <div class="dose-num" id="doseNum">---</div>
       <div class="dose-unit" id="doseUnit">μSv/h</div>
     </div>
 
     <!-- Zone display like image -->
-    <div style="margin:14px 0 8px;">
+    <div style="margin:8px 0 4px;">
       <!-- Color bar -->
       <div style="display:flex;height:8px;gap:2px;margin-bottom:6px;">
         <div id="ls0" style="flex:1;background:var(--cold);border-radius:2px;transition:opacity .3s;"></div>
@@ -335,7 +335,7 @@ input[type=range]::-webkit-slider-thumb {
     <div id="zoneDisplay" style="display:none;">冷　區</div>
     <div id="zoneDesc" style="display:none;">&lt; 0.5 μSv/h</div>
 
-    <div class="dist-row">
+    <div class="dist-row" style="margin-top:8px;padding-top:8px;">
       <div class="dist-block">
         <div class="dist-num" id="distNum">---</div>
         <div class="dist-lbl">距射源 (公尺)</div>
