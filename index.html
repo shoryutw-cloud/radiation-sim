@@ -353,10 +353,51 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
 
-    <!-- 回報按鈕：點擊後開啟回報 Modal -->
-    <div style="margin-top:14px;">
+    <!-- 回報區：事件/人員/儀器選擇在主畫面，按鈕後只做確認 -->
+    <div style="margin-top:16px;border-top:1px solid var(--green-dark);padding-top:14px;">
+
+      <!-- 選擇事件 -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          回報事件 <span style="color:var(--red)">*</span>
+        </div>
+        <select id="rptSelEvent" onchange="onRptEventChange()" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 載入中 —</option>
+        </select>
+      </div>
+
+      <!-- 選擇回報人員 -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          回報人員 <span style="color:var(--red)">*</span>
+        </div>
+        <select id="rptSelReporter" onchange="onMainValidate()" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 請先選擇事件 —</option>
+        </select>
+      </div>
+
+      <!-- 選擇儀器（選填） -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          使用儀器
+        </div>
+        <select id="rptSelInstrument" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 不指定 —</option>
+        </select>
+      </div>
+
+      <!-- 回報按鈕 -->
       <button class="btn" id="btnOpenReport" onclick="openReportModal()"
-              style="border-color:var(--lime);color:var(--lime);letter-spacing:2px;font-size:18px;">
+              style="border-color:var(--lime);color:var(--lime);letter-spacing:2px;font-size:18px;opacity:0.35;cursor:not-allowed;">
         📤 回報當前數值
       </button>
     </div>
@@ -367,10 +408,13 @@ input[type=range]::-webkit-slider-thumb {
 
 
 
+
+
+
 </div>
 
 <!-- ============================================================ -->
-<!-- 回報 Modal：讓使用者確認並送出當前量測數值到 Google Sheets    -->
+<!-- 回報確認 Modal：只顯示確認資訊，選擇已在主畫面完成         -->
 <!-- ============================================================ -->
 <div id="reportModal" style="
   display:none; position:fixed; inset:0; z-index:3000;
@@ -386,68 +430,28 @@ input[type=range]::-webkit-slider-thumb {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;
       padding-bottom:16px;border-bottom:2px solid #e5e7eb;">
       <div style="font-size:20px;font-weight:700;color:#111827;letter-spacing:1px;">
-        📤 回報量測數值
+        📤 確認回報內容
       </div>
       <button onclick="closeReportModal()" style="
         background:none;border:none;color:#6b7280;
         font-size:26px;cursor:pointer;line-height:1;padding:0 4px;">✕</button>
     </div>
 
-    <!-- 即將送出的數值預覽 -->
+    <!-- 確認預覽：顯示所有即將送出的內容 -->
     <div id="rptPreview" style="
       background:#f0fdf4;border:2px solid #86efac;border-radius:10px;
-      padding:16px;margin-bottom:20px;font-size:18px;
-      color:#166534;line-height:2;letter-spacing:0;">
-    </div>
-
-    <!-- 選擇事件 -->
-    <div style="margin-bottom:16px;">
-      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:7px;">
-        選擇事件 <span style="color:#dc2626">*</span>
-      </div>
-      <select id="rptSelEvent" onchange="onRptEventChange()" style="
-        width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
-        color:#111827;font-family:inherit;font-size:18px;
-        padding:11px 12px;outline:none;cursor:pointer;">
-        <option value="">— 載入中 —</option>
-      </select>
-    </div>
-
-    <!-- 選擇回報人員 -->
-    <div style="margin-bottom:16px;" id="rptReporterWrap">
-      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:7px;">
-        回報人員 <span style="color:#dc2626">*</span>
-      </div>
-      <select id="rptSelReporter" onchange="onRptValidate()" style="
-        width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
-        color:#111827;font-family:inherit;font-size:18px;
-        padding:11px 12px;outline:none;cursor:pointer;">
-        <option value="">— 請先選擇事件 —</option>
-      </select>
-    </div>
-
-    <!-- 選擇儀器（選填） -->
-    <div style="margin-bottom:22px;" id="rptInstrWrap">
-      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:7px;">
-        使用儀器 <span style="font-size:13px;color:#9ca3af;font-weight:400">（選填）</span>
-      </div>
-      <select id="rptSelInstrument" style="
-        width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
-        color:#111827;font-family:inherit;font-size:18px;
-        padding:11px 12px;outline:none;cursor:pointer;">
-        <option value="">— 不指定 —</option>
-      </select>
+      padding:18px;margin-bottom:22px;font-size:18px;
+      color:#166534;line-height:2.2;letter-spacing:0;">
     </div>
 
     <!-- 送出按鈕 -->
-    <button id="rptBtnSubmit" onclick="submitReportFromSim()" disabled style="
+    <button id="rptBtnSubmit" onclick="submitReportFromSim()" style="
       width:100%;padding:15px;font-family:inherit;
       font-size:19px;font-weight:700;letter-spacing:1px;
       border:none;border-radius:10px;cursor:pointer;
-      background:#16a34a;color:#ffffff;
-      transition:all .2s;opacity:0.35;"
-      onmouseover="if(!this.disabled)this.style.background='#15803d'"
-      onmouseout="if(!this.disabled)this.style.background='#16a34a'">
+      background:#16a34a;color:#ffffff;transition:all .2s;"
+      onmouseover="this.style.background='#15803d'"
+      onmouseout="this.style.background='#16a34a'">
       📤 確認送出
     </button>
 
@@ -1158,23 +1162,21 @@ function addLog(msg,type='') {
 }
 
 // ============================================================
-// 回報 Modal：將污染模擬器的即時數值回報至 Google Sheets
-// 使用與 measurement-report.html 相同的 GAS endpoint
+// 回報功能：選擇區在主畫面，Modal 只做確認
 // ============================================================
 
-// GAS Web App URL（與人工回報頁相同）
 const REPORT_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
 
-// 回報 Modal 用的事件清單
-let _rptEvents = [];
-let _rptCurEv  = null;
+let _rptEvents       = [];  // 事件清單
+let _rptCurEv        = null; // 目前選中的事件物件
 let _rptJsonpCounter = 0;
-// 記憶上次回報的選擇，下次開啟 Modal 時自動帶入
-let _rptLastEventId   = null;
-let _rptLastReporter  = '';
+
+// 記憶上次回報的選擇
+let _rptLastEventId    = null;
+let _rptLastReporter   = '';
 let _rptLastInstrument = '';
 
-// JSONP 工具函數（與 measurement-report.html 相同，用於繞過 CORS）
+// ── JSONP 工具（繞過 CORS）──
 function _rptJsonpGet(url, cb) {
   const name = '_rptCb' + (_rptJsonpCounter++);
   window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
@@ -1184,42 +1186,7 @@ function _rptJsonpGet(url, cb) {
   document.head.appendChild(s);
 }
 
-// 開啟回報 Modal
-function openReportModal() {
-  // 直接使用全域 lastDoseMsv（mSv/h），不從 DOM 反推避免單位重複換算
-  if (lastDoseMsv === null) {
-    alert('目前尚無有效劑量數值，請等待 GPS 定位後再試。');
-    return;
-  }
-
-  // 換算成 μSv/h 供回報和預覽使用
-  const doseUsv  = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
-  const latText  = myPos ? myPos.lat.toFixed(6) : '---';
-  const lngText  = myPos ? myPos.lng.toFixed(6) : '---';
-  document.getElementById('rptPreview').innerHTML =
-    `劑量率：<span style="color:#15803d;font-size:22px;font-weight:700;">${doseUsv} μSv/h</span>` +
-    `<br>GPS：${latText}, ${lngText}`;
-
-  // 重置狀態
-  document.getElementById('rptStatus').textContent = '';
-  document.getElementById('rptBtnSubmit').disabled = true;
-  document.getElementById('rptBtnSubmit').style.opacity = '0.4';
-
-  // 顯示 Modal
-  document.getElementById('reportModal').style.display = 'flex';
-
-  // 載入事件清單
-  loadRptEvents();
-}
-
-// 關閉回報 Modal
-function closeReportModal() {
-  document.getElementById('reportModal').style.display = 'none';
-  _rptEvents = [];
-  _rptCurEv  = null;
-}
-
-// 從 GAS 載入進行中的事件清單
+// ── 頁面載入後立即從 GAS 拉取事件清單 ──
 function loadRptEvents() {
   const sel = document.getElementById('rptSelEvent');
   sel.innerHTML = '<option value="">— 載入中… —</option>';
@@ -1234,140 +1201,155 @@ function loadRptEvents() {
       _rptEvents.map(function(ev, i) {
         return `<option value="${i}">${ev.name}（${ev.type||''}）</option>`;
       }).join('');
-    // 若有上次記憶的事件，自動選回並觸發人員/儀器填入
+
+    // 有上次記憶的事件 → 自動帶入
     if (_rptLastEventId) {
       const lastIdx = _rptEvents.findIndex(ev => ev.id === _rptLastEventId);
       if (lastIdx > -1) {
         sel.value = String(lastIdx);
-        onRptEventChange(); // 填入人員/儀器清單後再套用記憶
+        onRptEventChange();
       }
     }
   });
 }
 
-// 選擇事件後，填入人員和儀器下拉清單
+// ── 選擇事件後，填入人員和儀器清單 ──
 function onRptEventChange() {
-  const idx = document.getElementById('rptSelEvent').value;
-  const reporterSel    = document.getElementById('rptSelReporter');
-  const instrumentSel  = document.getElementById('rptSelInstrument');
+  const idx           = document.getElementById('rptSelEvent').value;
+  const reporterSel   = document.getElementById('rptSelReporter');
+  const instrumentSel = document.getElementById('rptSelInstrument');
 
   if (idx === '') {
     _rptCurEv = null;
     reporterSel.innerHTML   = '<option value="">— 請先選擇事件 —</option>';
     instrumentSel.innerHTML = '<option value="">— 不指定 —</option>';
-    onRptValidate();
+    onMainValidate();
     return;
   }
 
   _rptCurEv = _rptEvents[parseInt(idx)];
 
-  // 解析人員清單（personnelStr 格式：隊別:姓名, 隊別:姓名）
-  const names = (_rptCurEv.personnelStr || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+  // 解析人員清單（格式：隊別:姓名, 隊別:姓名）
+  const names = (_rptCurEv.personnelStr || '').split(',').map(s => s.trim()).filter(Boolean);
   reporterSel.innerHTML = '<option value="">— 請選擇回報人員 —</option>' +
     names.map(n => `<option value="${n}">${n}</option>`).join('');
 
-  // 解析儀器清單（instrumentStr 格式：儀器名 (序號), ...）
+  // 解析儀器清單
   const instrNames = [];
   if (_rptCurEv.instrumentStr) {
-    _rptCurEv.instrumentStr.split(',').forEach(function(item) {
+    _rptCurEv.instrumentStr.split(',').forEach(item => {
       const m = item.trim().match(/^([^([\:]+)/);
-      if (m) {
-        const name = m[1].trim();
-        if (name && instrNames.indexOf(name) === -1) instrNames.push(name);
-      }
+      if (m) { const n = m[1].trim(); if (n && !instrNames.includes(n)) instrNames.push(n); }
     });
   }
   instrumentSel.innerHTML = '<option value="">— 不指定 —</option>' +
     instrNames.map(n => `<option value="${n}">${n}</option>`).join('');
 
-  // 若有上次記憶的人員/儀器，自動選回
-  if (_rptLastReporter) {
-    const rSel = document.getElementById('rptSelReporter');
-    // 找到對應 option 才設值
-    for (let i = 0; i < rSel.options.length; i++) {
-      if (rSel.options[i].value === _rptLastReporter) {
-        rSel.value = _rptLastReporter;
-        break;
-      }
+  // 有記憶的人員/儀器 → 自動帶入
+  [['rptSelReporter', _rptLastReporter], ['rptSelInstrument', _rptLastInstrument]].forEach(([id, val]) => {
+    if (!val) return;
+    const el = document.getElementById(id);
+    for (let i = 0; i < el.options.length; i++) {
+      if (el.options[i].value === val) { el.value = val; break; }
     }
-  }
-  if (_rptLastInstrument) {
-    const iSel = document.getElementById('rptSelInstrument');
-    for (let i = 0; i < iSel.options.length; i++) {
-      if (iSel.options[i].value === _rptLastInstrument) {
-        iSel.value = _rptLastInstrument;
-        break;
-      }
-    }
-  }
-  onRptValidate();
+  });
+
+  onMainValidate();
 }
 
-// 驗證是否可送出
-function onRptValidate() {
+// ── 主畫面驗證：事件和人員都選了才啟用回報按鈕 ──
+function onMainValidate() {
   const evOk       = document.getElementById('rptSelEvent').value !== '';
   const reporterOk = document.getElementById('rptSelReporter').value !== '';
   const ok = evOk && reporterOk;
-  const btn = document.getElementById('rptBtnSubmit');
-  btn.disabled     = !ok;
-  btn.style.opacity = ok ? '1' : '0.4';
-  btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+  const btn = document.getElementById('btnOpenReport');
+  btn.disabled          = !ok;
+  btn.style.opacity     = ok ? '1' : '0.35';
+  btn.style.cursor      = ok ? 'pointer' : 'not-allowed';
 }
 
-// 送出回報到 GAS（POST JSON，與 measurement-report.html 相同格式）
+// ── 開啟確認 Modal ──
+function openReportModal() {
+  if (lastDoseMsv === null) {
+    alert('目前尚無有效劑量數值，請等待 GPS 定位後再試。');
+    return;
+  }
+  if (!_rptCurEv) return;
+
+  const doseUsv = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
+  const reporter   = document.getElementById('rptSelReporter').value;
+  const instrument = document.getElementById('rptSelInstrument').value;
+  const latText    = myPos ? myPos.lat.toFixed(6) : '---';
+  const lngText    = myPos ? myPos.lng.toFixed(6) : '---';
+
+  // 組合確認內容
+  document.getElementById('rptPreview').innerHTML =
+    `事件：<strong>${_rptCurEv.name}</strong>` +
+    `<br>人員：<strong>${reporter}</strong>` +
+    (instrument ? `<br>儀器：<strong>${instrument}</strong>` : '') +
+    `<br>劑量：<span style="color:#15803d;font-size:22px;font-weight:700;">${doseUsv} μSv/h</span>` +
+    `<br>GPS：${latText}, ${lngText}`;
+
+  document.getElementById('rptStatus').textContent = '';
+  const btn = document.getElementById('rptBtnSubmit');
+  btn.disabled    = false;
+  btn.textContent = '📤 確認送出';
+  btn.style.opacity = '1';
+
+  document.getElementById('reportModal').style.display = 'flex';
+}
+
+// ── 關閉確認 Modal ──
+function closeReportModal() {
+  document.getElementById('reportModal').style.display = 'none';
+}
+
+// ── 送出回報到 GAS ──
 function submitReportFromSim() {
   if (!_rptCurEv) return;
 
   const btn = document.getElementById('rptBtnSubmit');
-  btn.disabled = true;
-  btn.style.opacity = '0.4';
-  btn.textContent  = '⏳ 送出中…';
+  btn.disabled      = true;
+  btn.textContent   = '⏳ 送出中…';
+  btn.style.opacity = '0.5';
 
-  // 直接使用全域 lastDoseMsv（mSv/h），不從 DOM 反推避免單位重複換算
-  const doseUsv = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
+  const doseUsv    = (lastDoseMsv * 1000).toFixed(3);
+  const reporter   = document.getElementById('rptSelReporter').value;
+  const instrument = document.getElementById('rptSelInstrument').value;
 
   const payload = {
     action:     'addMeasurement',
     eventId:    _rptCurEv.id,
-    reporter:   document.getElementById('rptSelReporter').value,
-    value:      doseUsv,                            // μSv/h 字串
-    instrument: document.getElementById('rptSelInstrument').value,
+    reporter:   reporter,
+    value:      doseUsv,
+    instrument: instrument,
     lat:        myPos ? String(myPos.lat.toFixed(6)) : '',
     lng:        myPos ? String(myPos.lng.toFixed(6)) : ''
   };
 
-  addLog(`📤 回報中：${doseUsv} μSv/h → 事件 ${_rptCurEv.name}`);
+  addLog(`📤 回報中：${doseUsv} μSv/h → ${_rptCurEv.name}`);
 
   fetch(REPORT_URL, {
-    method:  'POST',
-    mode:    'no-cors',
+    method: 'POST', mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify(payload)
+    body: JSON.stringify(payload)
   })
   .then(function() {
-    // no-cors 模式下無法讀取 response，視為成功
     document.getElementById('rptStatus').innerHTML =
       `<span style="color:#16a34a;font-weight:600">✓ 回報成功！${doseUsv} μSv/h 已送出</span>`;
-    addLog(`✓ 回報成功：${doseUsv} μSv/h ／ ${payload.reporter}`, '');
-    // 記憶本次選擇，供下次回報預設使用
+    addLog(`✓ 回報成功：${doseUsv} μSv/h ／ ${reporter}`);
+    // 記憶本次選擇
     _rptLastEventId    = payload.eventId;
-    _rptLastReporter   = payload.reporter;
-    _rptLastInstrument = payload.instrument;
-    btn.textContent  = '✓ 已送出';
-    btn.style.opacity = '0.5';
-    // 2 秒後自動關閉 Modal
+    _rptLastReporter   = reporter;
+    _rptLastInstrument = instrument;
+    btn.textContent = '✓ 已送出';
     setTimeout(closeReportModal, 1000);
   })
   .catch(function(err) {
     document.getElementById('rptStatus').innerHTML =
       `<span style="color:#dc2626;font-weight:600">✕ 送出失敗，請確認網路</span>`;
     addLog('✕ 回報失敗: ' + err.message, 'd');
-    btn.disabled     = false;
-    btn.style.opacity = '1';
-    btn.textContent  = '📤 確認送出';
+    btn.disabled = false; btn.textContent = '📤 確認送出'; btn.style.opacity = '1';
   });
 }
 
@@ -1387,7 +1369,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   startPolling();
   startGPS();
+  loadRptEvents(); // 頁面載入後立即拉取事件清單，供主畫面選擇
 });
+
+
+
+
+
 </script>
 
   <!-- SCENARIO CONFIG -->
