@@ -437,6 +437,20 @@ input[type=range]::-webkit-slider-thumb {
       color:#166534;line-height:2.2;letter-spacing:0;">
     </div>
 
+    <!-- 備註欄（選填） -->
+    <div style="margin-bottom:18px;">
+      <label style="font-size:14px;font-weight:600;color:#374151;letter-spacing:1px;display:block;margin-bottom:6px;">
+        📝 備註 <span style="color:#9ca3af;font-weight:400;font-size:13px;">（選填）</span>
+      </label>
+      <textarea id="rptNotes" placeholder="可輸入補充說明、觀測備記…" maxlength="200"
+        style="width:100%;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;
+               color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
+               font-size:16px;padding:10px 12px;outline:none;resize:vertical;
+               min-height:72px;line-height:1.6;letter-spacing:0;transition:border-color .2s;"
+        onfocus="this.style.borderColor='#16a34a'"
+        onblur="this.style.borderColor='#d1d5db'"></textarea>
+    </div>
+
     <!-- 送出按鈕 -->
     <button id="rptBtnSubmit" onclick="submitReportFromSim()" style="
       width:100%;padding:15px;font-family:inherit;
@@ -1283,6 +1297,7 @@ function openReportModal() {
     `<br>劑量：<span style="color:#15803d;font-size:22px;font-weight:700;">${doseUsv} μSv/h</span>` +
     `<br>GPS：${latText}, ${lngText}`;
 
+  document.getElementById('rptNotes').value = '';
   document.getElementById('rptStatus').textContent = '';
   const btn = document.getElementById('rptBtnSubmit');
   btn.disabled    = false;
@@ -1310,12 +1325,15 @@ function submitReportFromSim() {
   const reporter   = document.getElementById('rptSelReporter').value;
   const instrument = document.getElementById('rptSelInstrument').value;
 
+  const notes      = (document.getElementById('rptNotes').value || '').trim();
+
   const payload = {
     action:     'addMeasurement',
     eventId:    _rptCurEv.id,
     reporter:   reporter,
     value:      doseUsv,
     instrument: instrument,
+    notes:      notes,
     lat:        myPos ? String(myPos.lat.toFixed(6)) : '',
     lng:        myPos ? String(myPos.lng.toFixed(6)) : ''
   };
