@@ -511,6 +511,7 @@ function applyScenario(scenario) {
   CFG.sigma     = s.sigma;
   CFG.refDist   = s.refDist;
   CFG.refDose   = s.refDose;
+  CFG.doseTable = s.doseTable || null;
   recalcQ();
   syncAdminUI();
   if(lbl) lbl.textContent = scenario;
@@ -612,10 +613,22 @@ const SCENARIOS = {
     sigma: 10, refDist: 37, refDose: 0.0005
   },
   B: {
-    name: '',
-    srcLat: 25.001512297908036, srcLng: 121.52701971950229,
-    srcDose: 500, windDir: 180, windSpeed: 3,
-    sigma: 25, refDist: 70, refDose: 1
+    name: '桃園輻射彈',
+    srcLat: 24.853848, srcLng: 121.254509,
+    srcDose: 120, windDir: 45, windSpeed: 3,
+    sigma: 20, refDist: 95, refDose: 0.0005,
+    // 下風方向查表（distM, mSv/h）—— 查表插值，不受逆平方限制
+    doseTable: [
+      [0,    120   ],
+      [5,    120   ],
+      [13,   12    ],
+      [25,   1.2   ],
+      [40,   0.12  ],
+      [60,   0.012 ],
+      [80,   0.0012],
+      [95,   0.0005],
+      [200,  0.0001]
+    ]
   },
   C: {
     name: '',
@@ -635,6 +648,7 @@ let CFG = {
   windDir: 135,       // degrees, direction plume travels (SE)
   windSpeed: 3,       // m/s
   sigma: 20,          // Gaussian crosswind spread (metres)
+  doseTable: null,    // 若設定則改用查表插值（B情境用）
 };
 
 // Derive source strength Q from reference point
@@ -660,30 +674,47 @@ function calcDose(distM, bearingFromSource) {
   // bearingFromSource: bearing FROM source TO sensor (degrees)
   if (distM < 0.5) return CFG.srcDose;
 
-  // Inverse square component
+  // ── 查表模式（B情境）：對下風方向劑量做 log-log 插值，再套用角度因子 ──
+  if (CFG.doseTable && CFG.doseTable.length >= 2) {
+    const table = CFG.doseTable;
+    let doseOnAxis;
+    if (distM <= table[0][0]) {
+      doseOnAxis = table[0][1];
+    } else if (distM >= table[table.length - 1][0]) {
+      doseOnAxis = table[table.length - 1][1];
+    } else {
+      for (let i = 0; i < table.length - 1; i++) {
+        if (distM <= table[i + 1][0]) {
+          // log-log 線性插值
+          const t = (Math.log(distM) - Math.log(table[i][0])) /
+                    (Math.log(table[i + 1][0]) - Math.log(table[i][0]));
+          const logDose = Math.log(table[i][1]) + t * (Math.log(table[i + 1][1]) - Math.log(table[i][0] === table[i+1][0] ? table[i+1][1] : table[i][1]));
+          // 修正：直接插值
+          const logD1 = Math.log(table[i][1]), logD2 = Math.log(table[i+1][1]);
+          doseOnAxis = Math.exp(logD1 + t * (logD2 - logD1));
+          break;
+        }
+      }
+    }
+    // 套用角度因子（下風=1，上風/橫風衰減）
+    const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
+    const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.05);
+    const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
+    const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+    const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
+    const windFactor = gaussian * upwindFactor + 0.05;
+    // 下風方向 windFactor ≈ 1.05，normalize 使下風正軸等於查表值
+    return Math.min(doseOnAxis * (windFactor / 1.05), CFG.srcDose) + BACKGROUND;
+  }
+
+  // ── 原始逆平方模式（A/C情境）──
   const invSq = Q_eff / (distM * distM);
-
-  // Gaussian plume angular factor
-  // windDir = direction plume travels
-  // downwind direction = windDir
-  // angle between sensor bearing and downwind direction
   const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
-
-  // σ_angular increases with distance (simple linear approximation)
   const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.1);
-
-  // Convert angular sigma to arc-length sigma at this distance
-  // σ_arc = sigmaEff (metres), convert to angle: σ_ang = sigmaEff/distM * (180/π)
   const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
-
-  // Gaussian factor (0 to 1)
   const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
-
-  // Upwind penalty: upwind side gets much less
   const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
-
-  const windFactor = gaussian * upwindFactor + 0.05; // 0.05 = minimum from scatter
-
+  const windFactor = gaussian * upwindFactor + 0.05;
   const dose = invSq * windFactor + BACKGROUND;
   return Math.min(dose, CFG.srcDose);
 }
@@ -1428,15 +1459,19 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="btn" id="scnBtnB" onclick="selectScenario('B')" style="text-align:left;padding:10px 12px;height:auto;">
           <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 B</div>
           <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
-            地點:<br>
-            緯度: 25.00151<br>
-            經度: 121.52702<br>
-            爆炸點劑量: 500 mSv/h<br>
-            風向: 180°（南）<br>
+            地點: 桃園輻射彈<br>
+            緯度: 24.853848<br>
+            經度: 121.254509<br>
+            風向: 45°（NE，右上）<br>
             風速: 3 m/s<br>
-            擴散寬度σ: 25 m<br>
-            校準距離: 70 m<br>
-            校準劑量: 1 mSv/h
+            ── 下風劑量查表 ──<br>
+            5m → 120 mSv/h<br>
+            13m → 12 mSv/h<br>
+            25m → 1.2 mSv/h<br>
+            40m → 120 μSv/h<br>
+            60m → 12 μSv/h<br>
+            80m → 1.2 μSv/h<br>
+            95m → 0.5 μSv/h
           </div>
         </button>
         <button class="btn" id="scnBtnC" onclick="selectScenario('C')" style="text-align:left;padding:10px 12px;height:auto;">
