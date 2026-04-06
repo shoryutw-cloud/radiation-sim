@@ -631,10 +631,21 @@ const SCENARIOS = {
     ]
   },
   C: {
-    name: '',
-    srcLat: 25.00323684121605, srcLng: 121.52493776685955,
-    srcDose: 500, windDir: 90, windSpeed: 3,
-    sigma: 25, refDist: 70, refDose: 1
+    name: '永和輻射彈',
+    srcLat: 25.003221, srcLng: 121.526246,
+    srcDose: 120, windDir: 180, windSpeed: 3,
+    sigma: 20, refDist: 95, refDose: 0.0005,
+    doseTable: [
+      [0,    120   ],
+      [5,    120   ],
+      [13,   12    ],
+      [25,   1.2   ],
+      [40,   0.12  ],
+      [60,   0.012 ],
+      [80,   0.0012],
+      [95,   0.0005],
+      [200,  0.0001]
+    ]
   }
 };
 
@@ -1477,15 +1488,19 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="btn" id="scnBtnC" onclick="selectScenario('C')" style="text-align:left;padding:10px 12px;height:auto;">
           <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 C</div>
           <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
-            地點:<br>
-            緯度: 25.00324<br>
-            經度: 121.52494<br>
-            爆炸點劑量: 500 mSv/h<br>
-            風向: 90°（東）<br>
+            地點: 永和輻射彈<br>
+            緯度: 25.003221<br>
+            經度: 121.526246<br>
+            風向: 180°（正南）<br>
             風速: 3 m/s<br>
-            擴散寬度σ: 25 m<br>
-            校準距離: 70 m<br>
-            校準劑量: 1 mSv/h
+            ── 下風劑量查表 ──<br>
+            5m → 120 mSv/h<br>
+            13m → 12 mSv/h<br>
+            25m → 1.2 mSv/h<br>
+            40m → 120 μSv/h<br>
+            60m → 12 μSv/h<br>
+            80m → 1.2 μSv/h<br>
+            95m → 0.5 μSv/h
           </div>
         </button>
       </div>
