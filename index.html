@@ -619,7 +619,7 @@ const SCENARIOS = {
     sigma: 20, refDist: 95, refDose: 0.0005,
     // 下風方向查表（distM, mSv/h）—— 查表插值，不受逆平方限制
     doseTable: [
-      [0,    120   ],
+      [0.1,  120   ],
       [5,    120   ],
       [13,   12    ],
       [25,   1.2   ],
@@ -636,7 +636,7 @@ const SCENARIOS = {
     srcDose: 120, windDir: 180, windSpeed: 3,
     sigma: 20, refDist: 95, refDose: 0.0005,
     doseTable: [
-      [0,    120   ],
+      [0.1,  120   ],
       [5,    120   ],
       [13,   12    ],
       [25,   1.2   ],
@@ -688,7 +688,7 @@ function calcDose(distM, bearingFromSource) {
   // ── 查表模式（B情境）：對下風方向劑量做 log-log 插值，再套用角度因子 ──
   if (CFG.doseTable && CFG.doseTable.length >= 2) {
     const table = CFG.doseTable;
-    let doseOnAxis;
+    let doseOnAxis = table[table.length - 1][1]; // 預設最遠值
     if (distM <= table[0][0]) {
       doseOnAxis = table[0][1];
     } else if (distM >= table[table.length - 1][0]) {
@@ -696,17 +696,17 @@ function calcDose(distM, bearingFromSource) {
     } else {
       for (let i = 0; i < table.length - 1; i++) {
         if (distM <= table[i + 1][0]) {
-          // log-log 線性插值
-          const t = (Math.log(distM) - Math.log(table[i][0])) /
-                    (Math.log(table[i + 1][0]) - Math.log(table[i][0]));
-          const logDose = Math.log(table[i][1]) + t * (Math.log(table[i + 1][1]) - Math.log(table[i][0] === table[i+1][0] ? table[i+1][1] : table[i][1]));
-          // 修正：直接插值
-          const logD1 = Math.log(table[i][1]), logD2 = Math.log(table[i+1][1]);
-          doseOnAxis = Math.exp(logD1 + t * (logD2 - logD1));
+          // log-log 線性插值（確保兩端都 > 0 才 log）
+          const d0 = table[i][0], d1 = table[i + 1][0];
+          const v0 = table[i][1], v1 = table[i + 1][1];
+          const t = (distM - d0) / (d1 - d0);
+          // log-log：取對數插值
+          doseOnAxis = Math.exp(Math.log(v0) + t * (Math.log(v1) - Math.log(v0)));
           break;
         }
       }
     }
+    if (!isFinite(doseOnAxis) || isNaN(doseOnAxis)) doseOnAxis = table[0][1];
     // 套用角度因子（下風=1，上風/橫風衰減）
     const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
     const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.05);
@@ -1084,7 +1084,9 @@ function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
 
   // Wind factor display
   const angleDiff = deltaAngle(bearingFromSrc, CFG.windDir);
-  const sigmaAng = (Math.max(CFG.sigma, CFG.sigma+distM*0.1)/distM)*(180/Math.PI);
+  const sigmaAng = distM > 0.5
+    ? (Math.max(CFG.sigma, CFG.sigma+distM*0.1)/distM)*(180/Math.PI)
+    : 180; // distM≈0 時給最大角度，避免除以0
   const wf = Math.exp(-(angleDiff*angleDiff)/(2*sigmaAng*sigmaAng));
   const upwind = isUpwind(bearingFromSrc, CFG.windDir);
   const wfFinal = wf*(upwind?0.08:1.0)+0.05;
@@ -1158,7 +1160,8 @@ function onPos(pos) {
   const bearingToSrc = bearing(lat,lng,CFG.srcLat,CFG.srcLng);
   const bearingFromSrc = bearing(CFG.srcLat,CFG.srcLng,lat,lng);
   const dose = calcDose(distM, bearingFromSrc);
-  lastDoseMsv = dose; // 儲存原始 mSv/h 數值，回報時直接使用不需從 DOM 反推
+  if (!isFinite(dose) || isNaN(dose)) return; // GPS 漂移產生異常值時直接跳過
+  lastDoseMsv = dose;
 
   // Cumulative
   const now=Date.now();
