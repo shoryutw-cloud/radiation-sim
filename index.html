@@ -346,8 +346,8 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
 
-    <!-- 回報區：事件/人員/儀器選擇在主畫面，按鈕後只做確認 -->
-    <div style="margin-top:16px;border-top:1px solid var(--green-dark);padding-top:14px;">
+    <!-- 回報區：隱藏，僅保留按鈕供需要時使用 -->
+    <div style="display:none;">
 
       <!-- 選擇事件 -->
       <div style="margin-bottom:10px;">
@@ -515,6 +515,31 @@ function applyScenario(scenario) {
   recalcQ();
   syncAdminUI();
   if(lbl) lbl.textContent = scenario;
+
+  // ── 重置殘留顯示，避免新情境使用舊資料 ──
+  lastDoseMsv = null;
+  cumDose = 0;
+  lastUpdateMs = null;
+  foundSource = false;
+  const dEl = document.getElementById('doseNum');
+  const uEl = document.getElementById('doseUnit');
+  const dstEl = document.getElementById('distNum');
+  const cumEl = document.getElementById('cumDoseNum');
+  if (dEl) dEl.textContent = '—';
+  if (uEl) uEl.textContent = 'μSv/h';
+  if (dstEl) dstEl.textContent = '—';
+  if (cumEl) cumEl.textContent = '0.0000';
+  // 若 GPS 已定位，立即用新情境重新計算
+  if (myPos) {
+    const distM = haversine(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
+    const bearingToSrc  = bearing(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
+    const bearingFromSrc = bearing(CFG.srcLat, CFG.srcLng, myPos.lat, myPos.lng);
+    const dose = calcDose(distM, bearingFromSrc);
+    if (isFinite(dose) && !isNaN(dose)) {
+      lastDoseMsv = dose;
+      updateUI(dose, distM, bearingToSrc, bearingFromSrc);
+    }
+  }
 }
 
 // applyScenarioData kept for compatibility
