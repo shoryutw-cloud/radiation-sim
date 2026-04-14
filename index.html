@@ -499,10 +499,14 @@ async function loadConfigFromSheet() {
 }
 
 // Apply scenario by name (A/B/C), default A
+let _lastAppliedScenario = '';
 function applyScenario(scenario) {
   const lbl = document.getElementById('activeScenarioLabel');
   if (!SCENARIOS[scenario]) scenario = 'A';
   const s = SCENARIOS[scenario];
+  const scenarioChanged = scenario !== _lastAppliedScenario;
+  _lastAppliedScenario = scenario;
+
   CFG.srcLat    = s.srcLat;
   CFG.srcLng    = s.srcLng;
   CFG.srcDose   = s.srcDose;
@@ -516,19 +520,21 @@ function applyScenario(scenario) {
   syncAdminUI();
   if(lbl) lbl.textContent = scenario;
 
-  // ── 重置殘留顯示，避免新情境使用舊資料 ──
-  lastDoseMsv = null;
-  cumDose = 0;
-  lastUpdateMs = null;
-  foundSource = false;
-  const dEl = document.getElementById('doseNum');
-  const uEl = document.getElementById('doseUnit');
-  const dstEl = document.getElementById('distNum');
-  const cumEl = document.getElementById('cumDoseNum');
-  if (dEl) dEl.textContent = '—';
-  if (uEl) uEl.textContent = 'μSv/h';
-  if (dstEl) dstEl.textContent = '—';
-  if (cumEl) cumEl.textContent = '0.0000';
+  // ── 只在情境切換時重置顯示 ──
+  if (scenarioChanged) {
+    lastDoseMsv = null;
+    cumDose = 0;
+    lastUpdateMs = null;
+    foundSource = false;
+    const dEl = document.getElementById('doseNum');
+    const uEl = document.getElementById('doseUnit');
+    const dstEl = document.getElementById('distNum');
+    const cumEl = document.getElementById('cumDoseNum');
+    if (dEl) dEl.textContent = '—';
+    if (uEl) uEl.textContent = 'μSv/h';
+    if (dstEl) dstEl.textContent = '—';
+    if (cumEl) cumEl.textContent = '0.0000';
+  }
   // 若 GPS 已定位，立即用新情境重新計算
   if (myPos) {
     const distM = haversine(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
@@ -1035,7 +1041,11 @@ async function applyConfig() {
   if(btn){ btn.textContent = ok ? '✓ 已發布至雲端' : '✕ 發布失敗'; btn.disabled=false;
     setTimeout(()=>{ btn.textContent='✓ 套用並發布情境'; }, 2000);
   }
-  if(ok) addLog('✓ 情境 ' + currentScenario + ' 發布成功');
+  if(ok) {
+    addLog('✓ 情境 ' + currentScenario + ' 發布成功');
+    // 立即在本地套用，不用等輪詢
+    applyScenario(currentScenario);
+  }
   document.getElementById('adminBody').classList.remove('open');
 }
 
