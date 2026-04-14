@@ -680,17 +680,28 @@ const SCENARIOS = {
   }
 };
 
+// 固定使用情境 B（桃園輻射彈）
 let CFG = {
-  srcLat: 25.00306850713046,
-  srcLng: 121.526629,
-  srcDose: 500,       // mSv/h at source point
-  refDist: 70,        // metres at which refDose applies
-  refDose: 1,         // mSv/h at refDist
-  findRadius: 10,     // metres to trigger "found"
-  windDir: 135,       // degrees, direction plume travels (SE)
-  windSpeed: 3,       // m/s
-  sigma: 20,          // Gaussian crosswind spread (metres)
-  doseTable: null,    // 若設定則改用查表插值（B情境用）
+  srcLat:    24.853848,
+  srcLng:    121.254509,
+  srcDose:   120,
+  windDir:   45,
+  windSpeed: 3,
+  sigma:     20,
+  refDist:   95,
+  refDose:   0.0005,
+  findRadius: 5,
+  doseTable: [
+    [0.1,  120   ],
+    [5,    120   ],
+    [13,   12    ],
+    [25,   1.2   ],
+    [40,   0.12  ],
+    [60,   0.012 ],
+    [80,   0.0012],
+    [95,   0.0005],
+    [200,  0.0001]
+  ]
 };
 
 // Derive source strength Q from reference point
@@ -1453,14 +1464,11 @@ document.addEventListener('DOMContentLoaded', () => {
   cvsW = document.getElementById('cvsWind');
   if(cvsW) wCtx = cvsW.getContext('2d');
 
+  // 固定情境 B，直接初始化
+  recalcQ();
   drawWindCompass(CFG.windDir);
   drawCompass(135, 500, 0, CFG.windDir);
-  loadConfigFromSheet().then(() => {
-    drawCompass(135, 500, 0, CFG.windDir);
-  });
-  startPolling();
   startGPS();
-  loadRptEvents(); // 頁面載入後立即拉取事件清單，供主畫面選擇
 });
 
 
@@ -1469,133 +1477,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 
-  <!-- SCENARIO CONFIG -->
+  <!-- 系統記錄 -->
   <div class="panel">
-    <button class="admin-toggle" onclick="toggleAdmin()">⚙ 情境設定面板 ▾</button>
-    <div id="pwModal" style="display:none;margin-top:12px;">
-      <div style="font-size:16px;color:var(--amber);letter-spacing:3px;margin-bottom:8px;">🔒 請輸入密碼解鎖設定</div>
-      <div style="display:flex;gap:8px;">
-        <input type="password" id="pwInput" maxlength="10"
-          style="flex:1;background:#000;border:1px solid var(--amber);color:var(--amber);
-                 font-family:'Share Tech Mono',monospace;font-size:22px;padding:8px;
-                 letter-spacing:6px;outline:none;text-align:center;"
-          placeholder="·····"
-          onkeydown="if(event.key==='Enter')checkPw()">
-        <button class="btn amber" style="width:70px;padding:8px;font-size:16px;" onclick="checkPw()">確認</button>
-      </div>
-      <div id="pwError" style="display:none;color:var(--red);font-size:16px;letter-spacing:2px;margin-top:6px;">✕ 密碼錯誤，請重試</div>
-    </div>
-    <div class="admin-body" id="adminBody">
-      <div class="admin-badge">INSTRUCTOR MODE &nbsp;·&nbsp; <span style="cursor:pointer;text-decoration:underline;" onclick="lockAdmin()">🔒 鎖定</span></div>
-
-      <!-- Scenario selector -->
-      <div class="ptitle" style="margin-bottom:8px;">▶ 選擇情境</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
-        <button class="btn" id="scnBtnA" onclick="selectScenario('A')" style="text-align:left;padding:10px 12px;height:auto;">
-          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 A</div>
-          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
-            地點: 核安會後門<br>
-            緯度: 25.003176<br>
-            經度: 121.526209<br>
-            爆炸點劑量: 3 mSv/h<br>
-            風向: 180°（南）<br>
-            風速: 4 m/s<br>
-            擴散寬度σ: 10 m<br>
-            校準距離: 37 m<br>
-            校準劑量: 0.0005 mSv/h
-          </div>
-        </button>
-        <button class="btn" id="scnBtnB" onclick="selectScenario('B')" style="text-align:left;padding:10px 12px;height:auto;">
-          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 B</div>
-          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
-            地點: 桃園輻射彈<br>
-            緯度: 24.853848<br>
-            經度: 121.254509<br>
-            風向: 45°（NE，右上）<br>
-            風速: 3 m/s<br>
-            ── 下風劑量查表 ──<br>
-            5m → 120 mSv/h<br>
-            13m → 12 mSv/h<br>
-            25m → 1.2 mSv/h<br>
-            40m → 120 μSv/h<br>
-            60m → 12 μSv/h<br>
-            80m → 1.2 μSv/h<br>
-            95m → 0.5 μSv/h
-          </div>
-        </button>
-        <button class="btn" id="scnBtnC" onclick="selectScenario('C')" style="text-align:left;padding:10px 12px;height:auto;">
-          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 C</div>
-          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
-            地點: 永和輻射彈<br>
-            緯度: 25.003221<br>
-            經度: 121.526246<br>
-            風向: 180°（正南）<br>
-            風速: 3 m/s<br>
-            ── 下風劑量查表 ──<br>
-            5m → 120 mSv/h<br>
-            13m → 12 mSv/h<br>
-            25m → 1.2 mSv/h<br>
-            40m → 120 μSv/h<br>
-            60m → 12 μSv/h<br>
-            80m → 1.2 μSv/h<br>
-            95m → 0.5 μSv/h
-          </div>
-        </button>
-      </div>
-      <div id="scnStatus" style="font-size:14px;color:var(--amber);letter-spacing:2px;margin-bottom:10px;min-height:20px;"></div>
-
-      <div class="src-grid">
-        <div class="src-field">
-          <label>射源緯度 LAT</label>
-          <input type="text" id="srcLat" value="25.003327">
-        </div>
-        <div class="src-field">
-          <label>射源經度 LNG</label>
-          <input type="text" id="srcLng" value="121.526629">
-        </div>
-        <div class="src-field">
-          <label>爆炸點劑量 (mSv/h)</label>
-          <input type="number" id="srcDose" value="500" min="1" max="9999">
-        </div>
-        <div class="src-field">
-          <label>校準距離 (m)</label>
-          <input type="number" id="refDist" value="70" min="1">
-        </div>
-        <div class="src-field">
-          <label>校準點劑量 (mSv/h)</label>
-          <input type="number" id="refDose" value="1" min="0.001" step="0.001">
-        </div>
-
-      </div>
-      <div class="ptitle" style="margin-top:8px;">風向設定</div>
-      <div class="wind-wrap">
-        <div class="wind-compass">
-          <canvas id="cvsWind" width="80" height="80"></canvas>
-        </div>
-        <div class="wind-info">
-          <label>風向（吹向）: <span id="windDirLabel" style="color:var(--green)">東南 135°</span></label>
-          <input type="range" id="windDir" min="0" max="359" value="135" oninput="onWindChange()">
-          <div style="margin-top:10px;">
-            <label>風速: <span id="windSpeedLabel" style="color:var(--green)">3 m/s</span></label>
-            <input type="range" id="windSpeed" min="1" max="15" value="3" oninput="onWindSpeedChange()">
-          </div>
-          <div style="margin-top:10px;">
-            <label>擴散寬度 σ: <span id="sigmaLabel" style="color:var(--green)">20 m</span></label>
-            <input type="range" id="sigmaCtrl" min="5" max="80" value="20" oninput="onSigmaChange()">
-          </div>
-        </div>
-      </div>
-      <div style="margin-top:10px;">
-        <button class="btn amber" onclick="applyConfig()">✓ 套用並發布情境</button>
-      </div>
-      <div style="margin-top:14px;">
-        <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
-        <div class="log-box" id="logBox">
-          <div class="le"><span class="ts">--:--:--</span><span class="msg">輻射彈擴散模擬器就緒</span></div>
-        </div>
-      </div>
+    <div class="log-box" id="logBox">
+      <div class="le"><span class="ts">--:--:--</span><span class="msg">輻射彈擴散模擬器就緒</span></div>
     </div>
   </div>
-
 </body>
 </html>
