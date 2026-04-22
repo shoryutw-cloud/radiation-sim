@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>偵檢模擬器</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --bg: #020608;
+  --panel: #030c10;
+  --green: #00e5ff;
+  --green-dim: #0088aa;
+  --green-dark: #001a22;
+  --amber: #ffb300;
+  --red: #ff2020;
+  --orange: #ff6600;
+  --lime: #76ff03;
+  --scanline: rgba(0,229,255,0.025);
+  --cold: #5bbcb8;
+  --warm: #e8923a;
+  --hot: #d94f2b;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scanline) 2px,var(--scanline) 4px);
+  pointer-events:none; z-index:1000;
+}
+
+.wrap {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 12px 12px 40px;
+  position: relative; z-index:1;
+}
+
+/* HEADER */
+.hdr {
+  text-align:center;
+  padding: 16px 0 10px;
+  border-bottom: 1px solid var(--green-dark);
+  margin-bottom: 14px;
+}
+.hdr h1 {
+  font-family:'Orbitron',sans-serif;
+  font-size: 16px;
+  font-weight:900;
+  letter-spacing:4px;
+  color: var(--green);
+  text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,229,255,0.3);
+}
+.hdr .sub { font-size:24px; color:var(--green-dim); letter-spacing:3px; margin-top:5px; }
+@keyframes flicker { 0%,93%,100%{opacity:1} 94%{opacity:.7} 96%{opacity:.5} 98%{opacity:1} }
+
+/* PANEL */
+.panel {
+  border:1px solid var(--green-dark);
+  background: var(--panel);
+  padding:14px;
+  margin-bottom:12px;
+  position:relative;
+  box-shadow: 0 0 20px rgba(0,229,255,0.03), inset 0 0 40px rgba(0,0,0,0.6);
+}
+.panel::before {
+  content:''; position:absolute; top:0;left:0;right:0; height:1px;
+  background: linear-gradient(90deg,transparent,var(--green-dim),transparent);
+}
+.ptitle {
+  font-family:'Orbitron',sans-serif;
+  font-size:24px; letter-spacing:4px;
+  color:var(--green-dim); margin-bottom:12px; text-transform:uppercase;
+}
+
+/* ADMIN BADGE */
+.admin-badge {
+  display:inline-block;
+  border:1px solid var(--amber);
+  color:var(--amber);
+  font-size:24px; letter-spacing:3px;
+  padding:2px 8px; margin-bottom:10px;
+}
+
+/* GPS STATUS */
+.gps-row { display:flex; align-items:center; gap:8px; font-size:18px; margin-bottom:8px; }
+.gps-dot { width:10px;height:10px;border-radius:50%;background:var(--green-dim);flex-shrink:0; }
+.gps-dot.on { background:var(--lime); animation:blink 1s infinite; }
+.gps-dot.err { background:var(--red); }
+@keyframes blink { 50%{opacity:0} }
+
+.info-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:6px;
+  font-size:17px; color:var(--green-dim);
+}
+.info-grid span { color:var(--green); font-size:19px; display:block; margin-top:2px; }
+
+/* DOSE BIG */
+.dose-big { text-align:center; padding:4px 0 2px; }
+.dose-num {
+  font-family:'Orbitron',sans-serif;
+  font-size:48px; font-weight:900; line-height:1;
+  transition: color .4s;
+  text-shadow: 0 0 40px currentColor;
+}
+.dose-unit { font-size:20px; color:var(--green-dim); letter-spacing:3px; margin-top:2px; }
+
+.dist-row {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--green-dark);
+}
+.dist-block { text-align:center; }
+.dist-num {
+  font-family:'Orbitron',sans-serif; font-size:30px; font-weight:700;
+  color:#00ffcc; text-shadow:0 0 15px #00ffcc;
+}
+.dist-lbl { font-size:17px; color:var(--green-dim); letter-spacing:2px; margin-top:2px; }
+
+/* GAUGE */
+.gauge-wrap { margin:10px 0; }
+.gauge-lbls { display:flex; justify-content:space-between; font-size:24px; color:rgba(0,229,255,.3); margin-bottom:4px; }
+.gauge-track {
+  height:20px; background:var(--green-dark);
+  border:1px solid rgba(0,229,255,.15); overflow:hidden; position:relative;
+}
+.gauge-fill { height:100%; width:0%; transition:width .5s,background .5s; }
+
+/* ALERT DOTS */
+.alert-row { display:flex; gap:6px; margin:10px 0; }
+.adot {
+  flex:1; height:26px; border:1px solid; display:flex;
+  align-items:center; justify-content:center;
+  font-size:24px; letter-spacing:1px; transition:all .3s; opacity:.2;
+}
+.adot.on { opacity:1; animation:pdot .8s infinite; }
+@keyframes pdot { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 8px 2px transparent} }
+
+/* COMPASS */
+.compass-wrap { display:flex; justify-content:center; padding:8px 0; }
+#cvsCompass { width:170px; height:170px; display:block; }
+.bearing-txt { text-align:center; font-size:18px; color:var(--green-dim); letter-spacing:2px; margin-top:4px; }
+
+/* GEIGER */
+
+/* WIND CONTROL */
+.wind-wrap { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.wind-compass { position:relative; width:80px; height:80px; flex-shrink:0; }
+#cvsWind { width:80px; height:80px; display:block; }
+.wind-info { flex:1; font-size:24px; }
+.wind-info label { color:var(--green-dim); font-size:24px; letter-spacing:2px; display:block; margin-bottom:6px; }
+input[type=range] {
+  -webkit-appearance:none; width:100%; height:4px;
+  background:var(--green-dark); outline:none; border:1px solid rgba(0,229,255,.2);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:14px; height:14px; background:var(--green); cursor:pointer;
+}
+
+/* SOURCE CONFIG */
+.src-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.src-field label { font-size:24px; color:var(--green-dim); letter-spacing:2px; display:block; margin-bottom:4px; }
+.src-field input[type=text], .src-field input[type=number] {
+  width:100%; background:#000; border:1px solid var(--green-dark);
+  color:var(--green); font-family:'Share Tech Mono',monospace; font-size:24px;
+  padding:6px 8px; outline:none;
+}
+.src-field input:focus { border-color:var(--green-dim); }
+
+/* BUTTONS */
+.btn {
+  font-family:'Share Tech Mono',monospace; font-size:24px; letter-spacing:3px;
+  padding:12px; border:1px solid var(--green-dim); background:transparent;
+  color:var(--green); cursor:pointer; width:100%; transition:all .2s;
+}
+.btn:hover {
+  background: rgba(0,229,255,0.15);
+  border-color: var(--green);
+  color: var(--green);
+}
+.btn:disabled { opacity:.3; cursor:not-allowed; }
+.btn.scn-active {
+  background: var(--amber) !important;
+  color: #000 !important;
+  border-color: var(--amber) !important;
+}
+.btn.scn-active::before { display:none; }
+
+/* Scenario buttons hover */
+#scnBtnA:hover, #scnBtnB:hover,
+#scnBtnC:hover, #scnBtnD:hover {
+  background: rgba(255,179,0,0.15);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.btn.amber { border-color:var(--amber); color:var(--amber); }
+.btn.amber:hover { background:rgba(255,179,0,0.15); border-color:var(--amber); color:var(--amber); }
+.btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+/* LOG */
+.log-box { max-height:90px; overflow-y:auto; font-size:17px; color:var(--green-dim); line-height:2; }
+.log-box::-webkit-scrollbar { width:3px; }
+.log-box::-webkit-scrollbar-thumb { background:var(--green-dim); }
+.le { border-bottom:1px solid rgba(0,229,255,.04); }
+.le .ts { color:rgba(0,229,255,.3); margin-right:8px; }
+.le.w .ts,.le.w .msg { color:var(--amber); }
+.le.d .ts,.le.d .msg { color:var(--red); }
+
+/* FLASH */
+.flash { position:fixed;inset:0;background:rgba(255,32,32,.07);pointer-events:none;z-index:999;opacity:0; }
+.flash.on { animation:flanim .6s infinite; }
+@keyframes flanim { 50%{opacity:1} }
+
+/* FOUND */
+.found-overlay { position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:2000;display:none;align-items:center;justify-content:center; }
+.found-overlay.show { display:flex; }
+.found-box {
+  border:2px solid var(--red); background:#000; padding:28px 22px; text-align:center;
+  max-width:320px; box-shadow:0 0 60px rgba(255,32,32,.4);
+}
+.found-box h2 { font-family:'Orbitron',sans-serif; font-size:24px; color:var(--red); text-shadow:0 0 20px var(--red); letter-spacing:3px; animation:flicker 1s infinite; }
+.found-box p { color:var(--amber); margin-top:10px; font-size:24px; letter-spacing:2px; line-height:2.2; }
+
+/* DOSE LEVEL INDICATOR */
+.level-bar {
+  display:flex; gap:4px; margin:8px 0;
+}
+.level-seg {
+  flex:1; height:6px; border-radius:1px;
+  transition: opacity .3s;
+}
+
+/* accordion for admin */
+.admin-toggle {
+  font-family:'Share Tech Mono',monospace; font-size:24px; letter-spacing:3px;
+  color:var(--amber); background:transparent; border:1px solid rgba(255,179,0,.3);
+  padding:6px 12px; cursor:pointer; width:100%; text-align:left; margin-bottom:0;
+}
+.admin-body { display:none; padding-top:12px; }
+.admin-body.open { display:block; }
+</style>
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+
+<!-- Update notification banner -->
+<div id="updateNotify" style="
+  display:none; position:fixed; top:0; left:0; right:0; z-index:3000;
+  background:#000; border-bottom:2px solid var(--amber);
+  padding:14px 16px; align-items:center; justify-content:space-between; gap:12px;
+  box-shadow: 0 4px 20px rgba(255,179,0,0.3);">
+  <div style="font-family:'Share Tech Mono',monospace;">
+    <div style="color:var(--amber);font-size:16px;letter-spacing:2px;">⚠ 情境已更新</div>
+    <div style="color:rgba(255,179,0,0.6);font-size:14px;margin-top:4px;">更新時間: <span id="notifyTime"></span></div>
+  </div>
+  <button onclick="location.reload()" style="
+    font-family:'Share Tech Mono',monospace; font-size:16px; letter-spacing:2px;
+    padding:10px 18px; border:1px solid var(--amber); background:var(--amber);
+    color:#000; cursor:pointer; white-space:nowrap; flex-shrink:0;">
+    立即重新載入
+  </button>
+</div>
+
+<div class="found-overlay" id="foundOverlay">
+  <div class="found-box">
+    <h2>☢ 射源定位成功</h2>
+    <p id="foundInfo"></p>
+    <button class="btn" style="margin-top:16px;" onclick="document.getElementById('foundOverlay').classList.remove('show')">確認 CONFIRM</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="hdr">
+    <h1>偵檢模擬器 &nbsp;·&nbsp; 情境 <span id="activeScenarioLabel">---</span></h1>
+  </div>
+
+  <!-- GPS 面板隱藏：不顯示但背景持續定位，元素保留供 JS 使用 -->
+  <div style="display:none;">
+    <div class="gps-dot" id="gpsDot"></div>
+    <span id="gpsMsg"></span>
+    <span id="myLat"></span>
+    <span id="myLng"></span>
+  </div>
+
+  <!-- DOSE -->
+  <div class="panel">
+    <div class="ptitle">▶ 即時輻射劑量率</div>
+    <div class="dose-big" style="display:flex;align-items:baseline;justify-content:center;gap:10px;">
+      <div class="dose-num" id="doseNum">---</div>
+      <div class="dose-unit" id="doseUnit">μSv/h</div>
+    </div>
+
+    <!-- Zone display like image -->
+    <div style="margin:8px 0 4px;">
+      <!-- Color bar -->
+      <div style="display:flex;height:8px;gap:2px;margin-bottom:6px;">
+        <div id="ls0" style="flex:1;background:var(--cold);border-radius:2px;transition:opacity .3s;"></div>
+        <div id="ls1" style="flex:1;background:var(--warm);border-radius:2px;transition:opacity .3s;"></div>
+        <div id="ls2" style="flex:1;background:var(--hot);border-radius:2px;transition:opacity .3s;"></div>
+      </div>
+      <!-- Threshold labels row - same line, under dividing points -->
+      <div style="display:flex;position:relative;height:24px;margin-bottom:4px;">
+        <div style="position:absolute;left:33%;transform:translateX(-50%);">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">0.5 μSv/h</span>
+        </div>
+        <div style="position:absolute;left:66%;transform:translateX(-50%);">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">100 μSv/h</span>
+        </div>
+      </div>
+      <!-- Zone buttons row -->
+      <div class="alert-row" style="margin:0;">
+        <div class="adot" id="d0" style="border-color:var(--cold);color:var(--cold);font-size:18px;font-family:'Orbitron',sans-serif;letter-spacing:2px;height:40px;">冷區</div>
+        <div class="adot" id="d1" style="border-color:var(--warm);color:var(--warm);font-size:18px;font-family:'Orbitron',sans-serif;letter-spacing:2px;height:40px;">暖區</div>
+        <div class="adot" id="d2" style="border-color:var(--hot);color:var(--hot);font-size:18px;font-family:'Orbitron',sans-serif;letter-spacing:2px;height:40px;">熱區</div>
+      </div>
+    </div>
+
+    <!-- Gauge bar (hidden, still used by JS) -->
+    <div style="display:none;">
+      <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div></div>
+    </div>
+    <!-- zoneDisplay/zoneDesc hidden, kept for JS -->
+    <div id="zoneDisplay" style="display:none;">冷　區</div>
+    <div id="zoneDesc" style="display:none;">&lt; 0.5 μSv/h</div>
+
+    <div class="dist-row" style="margin-top:8px;padding-top:8px;">
+      <div class="dist-block">
+        <div class="dist-num" id="distNum">---</div>
+        <div class="dist-lbl">距射源 (公尺)</div>
+      </div>
+      <div class="dist-block">
+        <div class="dist-num" id="cumDoseNum" style="font-size:24px;">0.000</div>
+        <div class="dist-lbl">累積劑量 mSv</div>
+      </div>
+    </div>
+
+    <!-- 回報區：隱藏，僅保留按鈕供需要時使用 -->
+    <div style="display:none;">
+
+      <!-- 選擇事件 -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          回報事件 <span style="color:var(--red)">*</span>
+        </div>
+        <select id="rptSelEvent" onchange="onRptEventChange()" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 載入中 —</option>
+        </select>
+      </div>
+
+      <!-- 選擇回報人員 -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          回報人員 <span style="color:var(--red)">*</span>
+        </div>
+        <select id="rptSelReporter" onchange="onMainValidate()" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 請先選擇事件 —</option>
+        </select>
+      </div>
+
+      <!-- 選擇儀器（選填） -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          使用儀器
+        </div>
+        <select id="rptSelInstrument" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 不指定 —</option>
+        </select>
+      </div>
+
+      <!-- 備註（選填） -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          備註 <span style="color:rgba(0,229,255,.35);font-size:12px;">（選填）</span>
+        </div>
+        <textarea id="rptNotes" placeholder="可輸入補充說明…" maxlength="200" rows="2"
+          style="width:100%;background:#000;border:1px solid var(--green-dark);
+                 color:var(--green);font-family:'Share Tech Mono',monospace;font-size:15px;
+                 padding:8px;outline:none;resize:vertical;line-height:1.6;
+                 transition:border-color .2s;"
+          onfocus="this.style.borderColor='var(--green-dim)'"
+          onblur="this.style.borderColor='var(--green-dark)'"></textarea>
+      </div>
+
+      <!-- 回報按鈕 -->
+      <button class="btn" id="btnOpenReport" onclick="openReportModal()"
+              style="border-color:var(--lime);color:var(--lime);letter-spacing:2px;font-size:18px;opacity:0.35;cursor:not-allowed;">
+        📤 回報當前數值
+      </button>
+    </div>
+  </div>
+
+
+
+
+
+
+
+
+
+</div>
+
+<!-- ============================================================ -->
+<!-- 回報確認 Modal：只顯示確認資訊，選擇已在主畫面完成         -->
+<!-- ============================================================ -->
+<div id="reportModal" style="
+  display:none; position:fixed; inset:0; z-index:3000;
+  background:rgba(0,0,0,0.75); align-items:center; justify-content:center;">
+  <div style="
+    background:#ffffff; border-radius:14px;
+    max-width:400px; width:92%; padding:24px;
+    box-shadow:0 8px 40px rgba(0,0,0,0.5);
+    font-family:-apple-system,BlinkMacSystemFont,'Microsoft JhengHei',sans-serif;
+    position:relative;">
+
+    <!-- 標題列 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;
+      padding-bottom:16px;border-bottom:2px solid #e5e7eb;">
+      <div style="font-size:20px;font-weight:700;color:#111827;letter-spacing:1px;">
+        📤 確認回報內容
+      </div>
+      <button onclick="closeReportModal()" style="
+        background:none;border:none;color:#6b7280;
+        font-size:26px;cursor:pointer;line-height:1;padding:0 4px;">✕</button>
+    </div>
+
+    <!-- 確認預覽：顯示所有即將送出的內容 -->
+    <div id="rptPreview" style="
+      background:#f0fdf4;border:2px solid #86efac;border-radius:10px;
+      padding:18px;margin-bottom:22px;font-size:18px;
+      color:#166534;line-height:2.2;letter-spacing:0;">
+    </div>
+
+    <!-- 送出按鈕 -->
+    <button id="rptBtnSubmit" onclick="submitReportFromSim()" style="
+      width:100%;padding:15px;font-family:inherit;
+      font-size:19px;font-weight:700;letter-spacing:1px;
+      border:none;border-radius:10px;cursor:pointer;
+      background:#16a34a;color:#ffffff;transition:all .2s;"
+      onmouseover="this.style.background='#15803d'"
+      onmouseout="this.style.background='#16a34a'">
+      📤 確認送出
+    </button>
+
+    <!-- 送出狀態訊息 -->
+    <div id="rptStatus" style="
+      margin-top:14px;text-align:center;font-size:17px;
+      color:#6b7280;letter-spacing:0;min-height:22px;">
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Google Sheets API
+// ============================================================
+const SHEETS_API = 'https://odd-paper-ab16.shoryu-tw.workers.dev';
+let lastUpdatedAt = '';
+let pollInterval = null;
+
+// Load active scenario name from Google Sheets
+async function loadConfigFromSheet() {
+  try {
+    const data = await fetchGAS(SHEETS_API);
+    const scenario = data.scenario || 'A';
+    const isFirstLoad = lastUpdatedAt === '';
+    const changed = data.updatedAt && data.updatedAt !== lastUpdatedAt;
+    if (changed && !isFirstLoad) {
+      showUpdateNotify(data.updatedAt, scenario);
+    }
+    if (data.updatedAt) lastUpdatedAt = data.updatedAt;
+    applyScenario(scenario);
+    return true;
+  } catch(e) {
+    addLog('✕ 讀取失敗: ' + e.message, 'd');
+    applyScenario('A');
+    return false;
+  }
+}
+
+// Apply scenario by name (A/B/C), default A
+let _lastAppliedScenario = '';
+function applyScenario(scenario) {
+  const lbl = document.getElementById('activeScenarioLabel');
+  if (!SCENARIOS[scenario]) scenario = 'A';
+  const s = SCENARIOS[scenario];
+  const scenarioChanged = scenario !== _lastAppliedScenario;
+  _lastAppliedScenario = scenario;
+
+  CFG.srcLat    = s.srcLat;
+  CFG.srcLng    = s.srcLng;
+  CFG.srcDose   = s.srcDose;
+  CFG.windDir   = s.windDir;
+  CFG.windSpeed = s.windSpeed;
+  CFG.sigma     = s.sigma;
+  CFG.refDist   = s.refDist;
+  CFG.refDose   = s.refDose;
+  CFG.doseTable = s.doseTable || null;
+  recalcQ();
+  syncAdminUI();
+  if(lbl) lbl.textContent = scenario;
+
+  // ── 只在情境切換時重置顯示 ──
+  if (scenarioChanged) {
+    lastDoseMsv = null;
+    cumDose = 0;
+    lastUpdateMs = null;
+    foundSource = false;
+    const dEl = document.getElementById('doseNum');
+    const uEl = document.getElementById('doseUnit');
+    const dstEl = document.getElementById('distNum');
+    const cumEl = document.getElementById('cumDoseNum');
+    if (dEl) dEl.textContent = '—';
+    if (uEl) uEl.textContent = 'μSv/h';
+    if (dstEl) dstEl.textContent = '—';
+    if (cumEl) cumEl.textContent = '0.0000';
+  }
+  // 若 GPS 已定位，立即用新情境重新計算
+  if (myPos) {
+    const distM = haversine(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
+    const bearingToSrc  = bearing(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
+    const bearingFromSrc = bearing(CFG.srcLat, CFG.srcLng, myPos.lat, myPos.lng);
+    const dose = calcDose(distM, bearingFromSrc);
+    if (isFinite(dose) && !isNaN(dose)) {
+      lastDoseMsv = dose;
+      updateUI(dose, distM, bearingToSrc, bearingFromSrc);
+    }
+  }
+}
+
+// applyScenarioData kept for compatibility
+function applyScenarioData(data) {
+  applyScenario(data.scenario || 'E');
+}
+
+// Fetch via Cloudflare Worker (has CORS header)
+async function fetchGAS(url) {
+  const res = await fetch(url, {
+    method: 'GET',
+    mode: 'cors',
+    cache: 'no-cache',
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  return JSON.parse(text);
+}
+
+const fetchJSONP = fetchGAS;
+
+// Load all 4 scenarios from sheet into panel
+async function loadAllScenarios() {
+  try {
+    const all = await fetchJSONP(SHEETS_API);
+    return all;
+  } catch(e) {
+    addLog('⚠ 無法讀取情境列表: ' + e.message, 'w');
+    return null;
+  }
+}
+
+// Save active scenario to Google Sheets
+async function saveConfigToSheet(cfg, scenario) {
+  try {
+    const params = new URLSearchParams({
+      action:   'save',
+      scenario: scenario || 'E'
+    });
+    const url = SHEETS_API + '?' + params.toString();
+    addLog('發布情境 ' + scenario + ' 中...');
+    const data = await fetchGAS(url);
+    if (data.success) {
+      addLog('✓ 情境 ' + scenario + ' 已發布至雲端');
+      return true;
+    }
+  } catch(e) {
+    addLog('✕ 發布失敗: ' + e.message, 'd');
+  }
+  return false;
+}
+
+// Show notification banner when config changes
+function showUpdateNotify(updatedAt, scenario) {
+  const banner = document.getElementById('updateNotify');
+  document.getElementById('notifyTime').textContent = '情境' + (scenario||'') + ' · ' + updatedAt;
+  banner.style.display = 'flex';
+}
+
+// Sync admin UI inputs from CFG
+function syncAdminUI() {
+  const isOpen = document.getElementById('adminBody').classList.contains('open');
+  if (isOpen) return;
+  document.getElementById('srcLat').value    = CFG.srcLat;
+  document.getElementById('srcLng').value    = CFG.srcLng;
+  document.getElementById('srcDose').value   = CFG.srcDose;
+  document.getElementById('refDist').value   = CFG.refDist;
+  document.getElementById('refDose').value   = CFG.refDose;
+  document.getElementById('windDir').value   = CFG.windDir;
+  document.getElementById('windSpeed').value = CFG.windSpeed;
+  document.getElementById('sigmaCtrl').value = CFG.sigma;
+  onWindChange();
+  onWindSpeedChange();
+  onSigmaChange();
+}
+
+// Start polling every 30 seconds
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(() => {
+    loadConfigFromSheet();
+  }, 30000);
+}
+
+// ============================================================
+// CONFIG (defaults — overridden by Google Sheets)
+// ============================================================
+// ============================================================
+// 三種預設情境（參數寫在程式裡）
+// ============================================================
+const SCENARIOS = {
+  A: {
+    name: '核安會後門',
+    srcLat: 25.003176, srcLng: 121.526209,
+    srcDose: 3, windDir: 180, windSpeed: 4,
+    sigma: 10, refDist: 37, refDose: 0.0005
+  },
+  B: {
+    name: '桃園輻射彈',
+    srcLat: 24.853848, srcLng: 121.254509,
+    srcDose: 120, windDir: 45, windSpeed: 3,
+    sigma: 20, refDist: 95, refDose: 0.0005,
+    // 下風方向查表（distM, mSv/h）—— 查表插值，不受逆平方限制
+    doseTable: [
+      [0.1,  120   ],
+      [5,    120   ],
+      [13,   12    ],
+      [25,   1.2   ],
+      [40,   0.12  ],
+      [60,   0.012 ],
+      [80,   0.0012],
+      [95,   0.0005],
+      [200,  0.0001]
+    ]
+  },
+  C: {
+    name: '永和輻射彈',
+    srcLat: 25.003221, srcLng: 121.526246,
+    srcDose: 120, windDir: 180, windSpeed: 3,
+    sigma: 20, refDist: 95, refDose: 0.0005,
+    doseTable: [
+      [0.1,  120   ],
+      [5,    120   ],
+      [13,   12    ],
+      [25,   1.2   ],
+      [40,   0.12  ],
+      [60,   0.012 ],
+      [80,   0.0012],
+      [95,   0.0005],
+      [200,  0.0001]
+    ]
+  }
+};
+
+// 固定使用情境 B（桃園輻射彈）
+let CFG = {
+  srcLat:    24.853848,
+  srcLng:    121.254509,
+  srcDose:   120,
+  windDir:   45,
+  windSpeed: 3,
+  sigma:     7,
+  refDist:   90,
+  refDose:   0.0005,
+  findRadius: 5,
+  doseTable: [
+    [0.1,  120    ],
+    [5,    12     ],
+    [15,   1.2    ],
+    [30,   0.12   ],
+    [50,   0.012  ],
+    [70,   0.0012 ],
+    [90,   0.0005 ],
+    [110,  0.00005]
+  ]
+};
+
+// Derive source strength Q from reference point
+// Gaussian plume on-axis: D(x) = Q / (2π σ² u) * exp(-r²/(2σ²)) * windFactor
+// We use a simplified model: D(r, θ) = Q_eff / r² * G(θ, windDir, σ_angular)
+// Calibrated so that D(refDist, downwind) = refDose
+let Q_eff = 1; // will be recalculated
+
+function recalcQ() {
+  // On-axis (downwind) dose at refDist = Q_eff / refDist²
+  // => Q_eff = refDose * refDist²
+  Q_eff = CFG.refDose * CFG.refDist * CFG.refDist;
+}
+recalcQ();
+
+// ============================================================
+// PHYSICS MODEL
+// Combines inverse-square falloff with Gaussian angular spread
+// ============================================================
+const BACKGROUND = 0.0001; // mSv/h (≈0.1 μSv/h)
+
+function calcDose(distM, bearingFromSource) {
+  // bearingFromSource: bearing FROM source TO sensor (degrees)
+  if (distM < 0.5) return CFG.srcDose;
+
+  // ── 查表模式（B情境）：對下風方向劑量做 log-log 插值，再套用角度因子 ──
+  if (CFG.doseTable && CFG.doseTable.length >= 2) {
+    const table = CFG.doseTable;
+    let doseOnAxis = table[table.length - 1][1]; // 預設最遠值
+    if (distM <= table[0][0]) {
+      doseOnAxis = table[0][1];
+    } else if (distM >= table[table.length - 1][0]) {
+      doseOnAxis = table[table.length - 1][1];
+    } else {
+      for (let i = 0; i < table.length - 1; i++) {
+        if (distM <= table[i + 1][0]) {
+          // log-log 線性插值（確保兩端都 > 0 才 log）
+          const d0 = table[i][0], d1 = table[i + 1][0];
+          const v0 = table[i][1], v1 = table[i + 1][1];
+          const t = (distM - d0) / (d1 - d0);
+          // log-log：取對數插值
+          doseOnAxis = Math.exp(Math.log(v0) + t * (Math.log(v1) - Math.log(v0)));
+          break;
+        }
+      }
+    }
+    if (!isFinite(doseOnAxis) || isNaN(doseOnAxis)) doseOnAxis = table[0][1];
+    // 套用角度因子（下風=1，上風/橫風衰減）
+    const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
+    const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.02);
+    const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
+    const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+    const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.02 : 1.0;
+    const windFactor = gaussian * upwindFactor + 0.01;
+    // 下風方向 windFactor ≈ 1.01，normalize 使下風正軸等於查表值
+    return Math.min(doseOnAxis * (windFactor / 1.01), CFG.srcDose) + BACKGROUND;
+  }
+
+  // ── 原始逆平方模式（A/C情境）──
+  const invSq = Q_eff / (distM * distM);
+  const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
+  const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.1);
+  const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
+  const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+  const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
+  const windFactor = gaussian * upwindFactor + 0.05;
+  const dose = invSq * windFactor + BACKGROUND;
+  return Math.min(dose, CFG.srcDose);
+}
+
+function deltaAngle(a, b) {
+  let d = Math.abs(a - b) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+function isUpwind(sensorBearing, windDir) {
+  // Upwind = sensor is roughly opposite to wind direction from source
+  const d = deltaAngle(sensorBearing, (windDir + 180) % 360);
+  return d < 70;
+}
+
+// ============================================================
+// HAVERSINE + BEARING
+// ============================================================
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function bearing(lat1, lng1, lat2, lng2) {
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const la1 = lat1*Math.PI/180, la2 = lat2*Math.PI/180;
+  const y = Math.sin(dLng)*Math.cos(la2);
+  const x = Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dLng);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let myPos = null;
+let cumDose = 0;
+let lastUpdateMs = null;
+let foundSource = false;
+let watchId = null;
+let lastDoseMsv = null; // 最新一次計算的劑量（單位：mSv/h），供回報使用
+
+// ============================================================
+// GEIGER CANVAS
+// ============================================================
+
+
+
+
+// ============================================================
+// COMPASS CANVAS
+// ============================================================
+let cvsC, cCtx;
+document.addEventListener('DOMContentLoaded', () => {
+  cvsC = document.getElementById('cvsCompass');
+  if(cvsC) cCtx = cvsC.getContext('2d');
+});
+
+function drawCompass(bearingToSource, distM, dose, windDir) {
+  if(!cCtx) return;
+  const W=170,H=170,cx=85,cy=85,r=78;
+  cCtx.clearRect(0,0,W,H);
+
+  // BG
+  cCtx.beginPath(); cCtx.arc(cx,cy,r,0,Math.PI*2);
+  cCtx.fillStyle='#000d05'; cCtx.fill();
+  cCtx.strokeStyle='rgba(0,229,255,.15)'; cCtx.lineWidth=1; cCtx.stroke();
+
+  // Rings
+  [55,35,18].forEach(rr=>{
+    cCtx.beginPath(); cCtx.arc(cx,cy,rr,0,Math.PI*2);
+    cCtx.strokeStyle='rgba(0,229,255,.06)'; cCtx.stroke();
+  });
+
+  // Wind cone (plume direction)
+  const windRad = (windDir-90)*Math.PI/180;
+  const coneAngle = Math.PI/6; // 30°
+  cCtx.beginPath();
+  cCtx.moveTo(cx,cy);
+  cCtx.arc(cx,cy,r-2, windRad-coneAngle, windRad+coneAngle);
+  cCtx.closePath();
+  cCtx.fillStyle='rgba(255,179,0,0.07)';
+  cCtx.fill();
+
+  // Wind arrow
+  const wx=cx+Math.cos(windRad)*60, wy=cy+Math.sin(windRad)*60;
+  cCtx.strokeStyle='rgba(255,179,0,0.5)'; cCtx.lineWidth=1.5; cCtx.setLineDash([3,4]);
+  cCtx.beginPath(); cCtx.moveTo(cx,cy); cCtx.lineTo(wx,wy); cCtx.stroke();
+  cCtx.setLineDash([]);
+
+  // Cardinals
+  const cards=['N','E','S','W'];
+  cCtx.fillStyle='rgba(0,229,255,.35)';
+  cCtx.font='10px Share Tech Mono'; cCtx.textAlign='center'; cCtx.textBaseline='middle';
+  cards.forEach((c,i)=>{
+    const a=i*Math.PI/2-Math.PI/2;
+    cCtx.fillText(c, cx+Math.cos(a)*68, cy+Math.sin(a)*68);
+  });
+
+  // Dose halo
+  if (myPos) {
+    const intensity = Math.min(dose/10,1);
+    const col = dose<0.1?'0,229,255': dose<1?'118,255,3': dose<3?'255,179,0':'255,32,32';
+    const grad = cCtx.createRadialGradient(cx,cy,0,cx,cy,r);
+    grad.addColorStop(0,`rgba(${col},${0.18*intensity})`);
+    grad.addColorStop(1,'transparent');
+    cCtx.beginPath(); cCtx.arc(cx,cy,r,0,Math.PI*2);
+    cCtx.fillStyle=grad; cCtx.fill();
+  }
+
+  // Source arrow
+  if (myPos) {
+    const rad=(bearingToSource-90)*Math.PI/180;
+    const aLen=58;
+    const ax=cx+Math.cos(rad)*aLen, ay=cy+Math.sin(rad)*aLen;
+    const col=dose<0.1?'#00e5ff':dose<1?'#76ff03':dose<3?'#ffb300':'#ff2020';
+    cCtx.strokeStyle=col; cCtx.lineWidth=2.5; cCtx.shadowBlur=10; cCtx.shadowColor=col;
+    cCtx.beginPath(); cCtx.moveTo(cx,cy); cCtx.lineTo(ax,ay); cCtx.stroke();
+    const hl=11,ha=0.38;
+    cCtx.beginPath();
+    cCtx.moveTo(ax,ay);
+    cCtx.lineTo(ax-hl*Math.cos(rad-ha),ay-hl*Math.sin(rad-ha));
+    cCtx.moveTo(ax,ay);
+    cCtx.lineTo(ax-hl*Math.cos(rad+ha),ay-hl*Math.sin(rad+ha));
+    cCtx.stroke();
+    cCtx.shadowBlur=0;
+    cCtx.fillStyle=col; cCtx.font='13px serif';
+    cCtx.textAlign='center'; cCtx.textBaseline='middle';
+    cCtx.fillText('☢', ax+Math.cos(rad)*9, ay+Math.sin(rad)*9);
+  }
+
+  // Me dot
+  cCtx.beginPath(); cCtx.arc(cx,cy,5,0,Math.PI*2);
+  cCtx.fillStyle='#00e5ff'; cCtx.shadowBlur=10; cCtx.shadowColor='#00e5ff';
+  cCtx.fill(); cCtx.shadowBlur=0;
+
+  // Dist label
+  if (myPos) {
+    cCtx.fillStyle='rgba(0,255,204,.5)'; cCtx.font='9px Share Tech Mono';
+    cCtx.textAlign='center'; cCtx.textBaseline='bottom';
+    cCtx.fillText(distM<1000?`${Math.round(distM)}m`:`${(distM/1000).toFixed(2)}km`, cx, H-6);
+  }
+
+  // Wind label
+  cCtx.fillStyle='rgba(255,179,0,.6)'; cCtx.font='9px Share Tech Mono';
+  cCtx.textAlign='center'; cCtx.textBaseline='top';
+  cCtx.fillText(`風→${windDirName(windDir)}`, cx, 6);
+}
+
+// ============================================================
+// WIND MINI COMPASS
+// ============================================================
+let cvsW, wCtx;
+document.addEventListener('DOMContentLoaded', () => {
+  cvsW = document.getElementById('cvsWind');
+  if(cvsW) wCtx = cvsW.getContext('2d');
+});
+
+function drawWindCompass(dir) {
+  if(!wCtx) return;
+  wCtx.clearRect(0,0,80,80);
+  wCtx.beginPath(); wCtx.arc(40,40,36,0,Math.PI*2);
+  wCtx.fillStyle='#000d05'; wCtx.fill();
+  wCtx.strokeStyle='rgba(255,179,0,.3)'; wCtx.lineWidth=1; wCtx.stroke();
+  const cards=['N','E','S','W'];
+  wCtx.fillStyle='rgba(255,179,0,.4)'; wCtx.font='8px Share Tech Mono';
+  wCtx.textAlign='center'; wCtx.textBaseline='middle';
+  cards.forEach((c,i)=>{
+    const a=i*Math.PI/2-Math.PI/2;
+    wCtx.fillText(c,40+Math.cos(a)*28,40+Math.sin(a)*28);
+  });
+  const rad=(dir-90)*Math.PI/180;
+  const ax=40+Math.cos(rad)*22, ay=40+Math.sin(rad)*22;
+  wCtx.strokeStyle='#ffb300'; wCtx.lineWidth=2; wCtx.shadowBlur=6; wCtx.shadowColor='#ffb300';
+  wCtx.beginPath(); wCtx.moveTo(40,40); wCtx.lineTo(ax,ay); wCtx.stroke();
+  wCtx.shadowBlur=0;
+  wCtx.beginPath(); wCtx.arc(40,40,3,0,Math.PI*2);
+  wCtx.fillStyle='#ffb300'; wCtx.fill();
+}
+
+function windDirName(deg) {
+  const d=['北','東北','東','東南','南','西南','西','西北'];
+  return d[Math.round(deg/45)%8];
+}
+
+function onWindChange() {
+  const v = parseInt(document.getElementById('windDir').value);
+  document.getElementById('windDirLabel').textContent = `${windDirName(v)} ${v}°`;
+  drawWindCompass(v);
+}
+
+function onWindSpeedChange() {
+  const v = document.getElementById('windSpeed').value;
+  document.getElementById('windSpeedLabel').textContent = `${v} m/s`;
+}
+
+function onSigmaChange() {
+  const v = document.getElementById('sigmaCtrl').value;
+  document.getElementById('sigmaLabel').textContent = `${v} m`;
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function toggleAdmin() {
+  const body = document.getElementById('adminBody');
+  const modal = document.getElementById('pwModal');
+  // If already unlocked, toggle close
+  if (body.classList.contains('open')) {
+    body.classList.remove('open');
+    modal.style.display = 'none';
+    return;
+  }
+  // Show password modal
+  modal.style.display = 'block';
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwError').style.display = 'none';
+  setTimeout(() => document.getElementById('pwInput').focus(), 100);
+}
+
+function checkPw() {
+  const val = document.getElementById('pwInput').value;
+  if (val === '55688') {
+    document.getElementById('pwModal').style.display = 'none';
+    document.getElementById('adminBody').classList.add('open');
+    document.getElementById('pwError').style.display = 'none';
+  } else {
+    document.getElementById('pwError').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+function lockAdmin() {
+  document.getElementById('adminBody').classList.remove('open');
+  document.getElementById('pwModal').style.display = 'none';
+}
+
+// Currently selected scenario
+let currentScenario = 'A';
+
+// Select and preview a scenario from sheet
+async function selectScenario(scenario) {
+  // Update button styles
+  ['A','B','C'].forEach(s => {
+    const btn = document.getElementById('scnBtn' + s);
+    if(btn) {
+      btn.classList.toggle('scn-active', s === scenario);
+    }
+  });
+
+  currentScenario = scenario;
+  document.getElementById('scnStatus').textContent = '已選擇情境 ' + scenario + (scenario==='D'?' (自訂)':'') + ' — 請按「套用並發布」生效';
+
+  // Load from built-in SCENARIOS
+  if (SCENARIOS[scenario]) {
+    const d = SCENARIOS[scenario];
+    document.getElementById('srcLat').value    = d.srcLat;
+    document.getElementById('srcLng').value    = d.srcLng;
+    document.getElementById('srcDose').value   = d.srcDose;
+    document.getElementById('refDist').value   = d.refDist;
+    document.getElementById('refDose').value   = d.refDose;
+    document.getElementById('windDir').value   = d.windDir;
+    document.getElementById('windSpeed').value = d.windSpeed;
+    document.getElementById('sigmaCtrl').value = d.sigma;
+    onWindChange();
+    onWindSpeedChange();
+    onSigmaChange();
+    addLog('✓ 情境 ' + scenario + ' 參數已載入，按發布生效');
+  }
+}
+
+async function applyConfig() {
+  const btn = document.querySelector('#adminBody .btn.amber');
+  if(btn){ btn.textContent='發布中...'; btn.disabled=true; }
+
+  const ok = await saveConfigToSheet({}, currentScenario);
+
+  if(btn){ btn.textContent = ok ? '✓ 已發布至雲端' : '✕ 發布失敗'; btn.disabled=false;
+    setTimeout(()=>{ btn.textContent='✓ 套用並發布情境'; }, 2000);
+  }
+  if(ok) {
+    addLog('✓ 情境 ' + currentScenario + ' 發布成功');
+    // 立即在本地套用，不用等輪詢
+    applyScenario(currentScenario);
+  }
+  document.getElementById('adminBody').classList.remove('open');
+}
+
+// ============================================================
+// UI UPDATE
+// ============================================================
+function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
+  // Dose display - auto switch unit: μSv/h below 0.999 mSv/h, mSv/h above
+  const dEl = document.getElementById('doseNum');
+  const uEl = document.getElementById('doseUnit');
+  let dStr;
+  if (dose < 0.999) {
+    // Show as μSv/h
+    const uSv = dose * 1000;
+    dStr = uSv >= 100 ? uSv.toFixed(1) : uSv >= 10 ? uSv.toFixed(2) : uSv.toFixed(3);
+    if(uEl) uEl.textContent = 'μSv/h';
+  } else {
+    // Show as mSv/h
+    dStr = dose >= 100 ? dose.toFixed(1) : dose >= 10 ? dose.toFixed(2) : dose.toFixed(3);
+    if(uEl) uEl.textContent = 'mSv/h';
+  }
+  dEl.textContent = dStr;
+
+  // Zone: dose in mSv/h, thresholds: 0.5 μSv/h = 0.0005 mSv/h, 100 μSv/h = 0.1 mSv/h
+  // dose unit here is mSv/h
+  let color, alertLevel, zoneName, zoneDesc;
+  if (dose < 0.0005) {
+    color='#5bbcb8'; alertLevel=0; zoneName='冷　區'; zoneDesc='&lt; 0.5 μSv/h';
+  } else if (dose < 0.1) {
+    color='#e8923a'; alertLevel=1; zoneName='暖　區'; zoneDesc='0.5 ~ 100 μSv/h';
+  } else {
+    color='#d94f2b'; alertLevel=2; zoneName='熱　區'; zoneDesc='≥ 100 μSv/h';
+  }
+
+  dEl.style.color = color;
+
+  // Zone display
+  const zd = document.getElementById('zoneDisplay');
+  const zdesc = document.getElementById('zoneDesc');
+  if(zd){ zd.textContent=zoneName; zd.style.color=color; }
+  if(zdesc){ zdesc.innerHTML=zoneDesc; }
+
+  // Level segments (3 zones)
+  for(let i=0;i<=2;i++){
+    const seg=document.getElementById('ls'+i);
+    if(seg) seg.style.opacity = i<=alertLevel?'1':'0.15';
+  }
+
+  // Gauge (log scale across 3 zones)
+  const pct = Math.min(Math.log1p(dose*10000)/Math.log1p(1000)*100,100);
+  const gf = document.getElementById('gaugeFill');
+  gf.style.width = pct+'%'; gf.style.background=color; gf.style.boxShadow=`0 0 8px ${color}`;
+
+  // Alert dots (3)
+  for(let i=0;i<=2;i++){
+    const d=document.getElementById('d'+i);
+    if(!d) continue;
+    d.classList.toggle('on',i===alertLevel);
+    d.style.opacity=i===alertLevel?'1':'0.2';
+    d.style.boxShadow=i===alertLevel?`0 0 14px currentColor`:'none';
+  }
+
+  // Flash only in hot zone
+  document.getElementById('flash').classList.toggle('on',alertLevel>=2);
+
+  // CPM (Cs-137: ~1 μSv/h ≈ 120 CPM for typical GM tube)
+
+
+  // Dist
+  document.getElementById('distNum').textContent = distM<1000?Math.round(distM):`${(distM/1000).toFixed(2)}k`;
+
+  // Wind factor display
+  const angleDiff = deltaAngle(bearingFromSrc, CFG.windDir);
+  const sigmaAng = distM > 0.5
+    ? (Math.max(CFG.sigma, CFG.sigma+distM*0.1)/distM)*(180/Math.PI)
+    : 180; // distM≈0 時給最大角度，避免除以0
+  const wf = Math.exp(-(angleDiff*angleDiff)/(2*sigmaAng*sigmaAng));
+  const upwind = isUpwind(bearingFromSrc, CFG.windDir);
+  const wfFinal = wf*(upwind?0.08:1.0)+0.05;
+
+
+  // Compass
+  drawCompass(bearingToSrc, distM, dose, CFG.windDir);
+  const cardName = ['北','東北','東','東南','南','西南','西','西北'];
+  const idx = Math.round(bearingToSrc/45)%8;
+  document.getElementById('bearingTxt').textContent=`射源方位: ${Math.round(bearingToSrc)}° (${cardName[idx]}) · ${upwind?'上風側↑':'下風側↓'}`;
+}
+
+// ============================================================
+// GPS
+// ============================================================
+function startGPS() {
+  // Check basic support
+  if (!navigator.geolocation) {
+    addLog('✕ 此裝置不支援 Geolocation API','d');
+    document.getElementById('gpsMsg').textContent='不支援 GPS';
+    document.getElementById('gpsDot').className='gps-dot err';
+    return;
+  }
+
+  // Check if running in secure context
+  if (!window.isSecureContext) {
+    addLog('✕ 需要 HTTPS 才能使用 GPS','d');
+    document.getElementById('gpsMsg').textContent='需要 HTTPS 環境';
+    document.getElementById('gpsDot').className='gps-dot err';
+    return;
+  }
+
+  document.getElementById('gpsMsg').textContent='正在請求定位授權...';
+
+  // Try permissions API first to check status
+  if (navigator.permissions) {
+    navigator.permissions.query({name:'geolocation'}).then(result => {
+      if (result.state === 'denied') {
+        addLog('✕ GPS 已被封鎖，請至手機設定 > Chrome > 位置 > 改為允許','d');
+        document.getElementById('gpsMsg').textContent='GPS 被封鎖，請至設定開啟';
+        document.getElementById('gpsDot').className='gps-dot err';
+              return;
+      }
+    }).catch(()=>{});
+  }
+
+  watchId = navigator.geolocation.watchPosition(onPos, onErr, {
+    enableHighAccuracy:true, maximumAge:3000, timeout:20000
+  });
+
+  // Timeout warning
+  setTimeout(() => {
+    if (!myPos) {
+      document.getElementById('gpsMsg').textContent='定位中... 請移至戶外空曠處';
+    }
+  }, 10000);
+}
+
+function onPos(pos) {
+  const {latitude:lat, longitude:lng, accuracy:acc} = pos.coords;
+  myPos = {lat,lng};
+
+  document.getElementById('myLat').textContent=lat.toFixed(6);
+  document.getElementById('myLng').textContent=lng.toFixed(6);
+  const accEl = document.getElementById('myAcc'); if(accEl) accEl.textContent=`${Math.round(acc)} m`;
+  const timeEl = document.getElementById('gpsTime'); if(timeEl) timeEl.textContent=new Date().toTimeString().slice(0,8);
+  document.getElementById('gpsDot').className='gps-dot on';
+  document.getElementById('gpsMsg').textContent=`GPS 連接中 · 精度 ±${Math.round(acc)}m`;
+
+  const distM = haversine(lat,lng,CFG.srcLat,CFG.srcLng);
+  const bearingToSrc = bearing(lat,lng,CFG.srcLat,CFG.srcLng);
+  const bearingFromSrc = bearing(CFG.srcLat,CFG.srcLng,lat,lng);
+  const dose = calcDose(distM, bearingFromSrc);
+  if (!isFinite(dose) || isNaN(dose)) return; // GPS 漂移產生異常值時直接跳過
+  lastDoseMsv = dose;
+
+  // Cumulative
+  const now=Date.now();
+  if (lastUpdateMs) {
+    const dtH=(now-lastUpdateMs)/3600000;
+    cumDose+=dose*dtH;
+    document.getElementById('cumDoseNum').textContent=cumDose.toFixed(4);
+  }
+  lastUpdateMs=now;
+
+  updateUI(dose, distM, bearingToSrc, bearingFromSrc);
+
+  // Log
+
+  // Found?
+  if (!foundSource && distM<CFG.findRadius) {
+    foundSource=true;
+    document.getElementById('foundInfo').innerHTML=
+      `距射源: ${Math.round(distM)} 公尺<br>劑量率: ${dose.toFixed(2)} mSv/h<br>座標: ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>核種: Cs-137 · 風向: ${CFG.windDir}°`;
+    document.getElementById('foundOverlay').classList.add('show');
+    addLog('☢ 射源定位成功！','d');
+  }
+}
+
+function onErr(e) {
+  const m={
+    1:'GPS 授權被拒絕 → 設定 > Chrome > 位置 > 允許',
+    2:'GPS 訊號無法取得 → 請到戶外開放空間',
+    3:'GPS 逾時 → 訊號太弱，請重試'
+  };
+  document.getElementById('gpsDot').className='gps-dot err';
+  const msg = m[e.code] || `GPS 錯誤 (code:${e.code})`;
+  document.getElementById('gpsMsg').textContent=msg;
+  addLog(`✕ ${msg} (錯誤碼:${e.code} ${e.message||''})`, 'd');
+
+}
+
+// ============================================================
+// LOG
+// ============================================================
+let logN=0;
+function addLog(msg,type='') {
+  const box=document.getElementById('logBox');
+  const ts=new Date().toTimeString().slice(0,8);
+  const d=document.createElement('div');
+  d.className='le'+(type?' '+type:'');
+  d.innerHTML=`<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+  if(++logN>80) box.firstChild.remove();
+}
+
+// ============================================================
+// 回報功能：選擇區在主畫面，Modal 只做確認
+// ============================================================
+
+const REPORT_URL = 'https://script.google.com/macros/s/AKfycbyO8TvvFgbHJF-l2WJa0hzoHnY8pT64LLgv1vaBVe0OqnSIbyhduQEfjMlyS6eXCzhW/exec';
+
+let _rptEvents       = [];  // 事件清單
+let _rptCurEv        = null; // 目前選中的事件物件
+let _rptJsonpCounter = 0;
+
+// 記憶上次回報的選擇
+let _rptLastEventId    = null;
+let _rptLastReporter   = '';
+let _rptLastInstrument = '';
+
+// ── JSONP 工具（繞過 CORS）──
+function _rptJsonpGet(url, cb) {
+  const name = '_rptCb' + (_rptJsonpCounter++);
+  window[name] = function(data) { delete window[name]; document.head.removeChild(s); cb(data); };
+  const s = document.createElement('script');
+  s.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + name;
+  s.onerror = function() { delete window[name]; document.head.removeChild(s); cb(null); };
+  document.head.appendChild(s);
+}
+
+// ── 頁面載入後立即從 GAS 拉取事件清單 ──
+function loadRptEvents() {
+  const sel = document.getElementById('rptSelEvent');
+  sel.innerHTML = '<option value="">— 載入中… —</option>';
+
+  _rptJsonpGet(REPORT_URL + '?action=events', function(data) {
+    _rptEvents = (data && data.events) ? data.events : [];
+    if (!_rptEvents.length) {
+      sel.innerHTML = '<option value="">— 目前無進行中事件 —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— 請選擇事件 —</option>' +
+      _rptEvents.map(function(ev, i) {
+        return `<option value="${i}">${ev.name}（${ev.type||''}）</option>`;
+      }).join('');
+
+    // 有上次記憶的事件 → 自動帶入
+    if (_rptLastEventId) {
+      const lastIdx = _rptEvents.findIndex(ev => ev.id === _rptLastEventId);
+      if (lastIdx > -1) {
+        sel.value = String(lastIdx);
+        onRptEventChange();
+      }
+    }
+  });
+}
+
+// ── 選擇事件後，填入人員和儀器清單 ──
+function onRptEventChange() {
+  const idx           = document.getElementById('rptSelEvent').value;
+  const reporterSel   = document.getElementById('rptSelReporter');
+  const instrumentSel = document.getElementById('rptSelInstrument');
+
+  if (idx === '') {
+    _rptCurEv = null;
+    reporterSel.innerHTML   = '<option value="">— 請先選擇事件 —</option>';
+    instrumentSel.innerHTML = '<option value="">— 不指定 —</option>';
+    onMainValidate();
+    return;
+  }
+
+  _rptCurEv = _rptEvents[parseInt(idx)];
+
+  // 解析人員清單（格式：隊別:姓名, 隊別:姓名）
+  const names = (_rptCurEv.personnelStr || '').split(',').map(s => s.trim()).filter(Boolean);
+  reporterSel.innerHTML = '<option value="">— 請選擇回報人員 —</option>' +
+    names.map(n => `<option value="${n}">${n}</option>`).join('');
+
+  // 解析儀器清單
+  const instrNames = [];
+  if (_rptCurEv.instrumentStr) {
+    _rptCurEv.instrumentStr.split(',').forEach(item => {
+      const m = item.trim().match(/^([^([\:]+)/);
+      if (m) { const n = m[1].trim(); if (n && !instrNames.includes(n)) instrNames.push(n); }
+    });
+  }
+  instrumentSel.innerHTML = '<option value="">— 不指定 —</option>' +
+    instrNames.map(n => `<option value="${n}">${n}</option>`).join('');
+
+  // 有記憶的人員/儀器 → 自動帶入
+  [['rptSelReporter', _rptLastReporter], ['rptSelInstrument', _rptLastInstrument]].forEach(([id, val]) => {
+    if (!val) return;
+    const el = document.getElementById(id);
+    for (let i = 0; i < el.options.length; i++) {
+      if (el.options[i].value === val) { el.value = val; break; }
+    }
+  });
+
+  onMainValidate();
+}
+
+// ── 主畫面驗證：事件和人員都選了才啟用回報按鈕 ──
+function onMainValidate() {
+  const evOk       = document.getElementById('rptSelEvent').value !== '';
+  const reporterOk = document.getElementById('rptSelReporter').value !== '';
+  const ok = evOk && reporterOk;
+  const btn = document.getElementById('btnOpenReport');
+  btn.disabled          = !ok;
+  btn.style.opacity     = ok ? '1' : '0.35';
+  btn.style.cursor      = ok ? 'pointer' : 'not-allowed';
+}
+
+// ── 開啟確認 Modal ──
+function openReportModal() {
+  if (lastDoseMsv === null) {
+    alert('目前尚無有效劑量數值，請等待 GPS 定位後再試。');
+    return;
+  }
+  if (!_rptCurEv) return;
+
+  const doseUsv = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
+  const reporter   = document.getElementById('rptSelReporter').value;
+  const instrument = document.getElementById('rptSelInstrument').value;
+  const latText    = myPos ? myPos.lat.toFixed(6) : '---';
+  const lngText    = myPos ? myPos.lng.toFixed(6) : '---';
+
+  // 組合確認內容
+  document.getElementById('rptPreview').innerHTML =
+    `事件：<strong>${_rptCurEv.name}</strong>` +
+    `<br>人員：<strong>${reporter}</strong>` +
+    (instrument ? `<br>儀器：<strong>${instrument}</strong>` : '') +
+    `<br>劑量：<span style="color:#15803d;font-size:22px;font-weight:700;">${doseUsv} μSv/h</span>` +
+    `<br>GPS：${latText}, ${lngText}`;
+
+  document.getElementById('rptNotes').value = '';
+  document.getElementById('rptStatus').textContent = '';
+  const btn = document.getElementById('rptBtnSubmit');
+  btn.disabled    = false;
+  btn.textContent = '📤 確認送出';
+  btn.style.opacity = '1';
+
+  document.getElementById('reportModal').style.display = 'flex';
+}
+
+// ── 關閉確認 Modal ──
+function closeReportModal() {
+  document.getElementById('reportModal').style.display = 'none';
+}
+
+// ── 送出回報到 GAS ──
+function submitReportFromSim() {
+  if (!_rptCurEv) return;
+
+  const btn = document.getElementById('rptBtnSubmit');
+  btn.disabled      = true;
+  btn.textContent   = '⏳ 送出中…';
+  btn.style.opacity = '0.5';
+
+  const doseUsv    = (lastDoseMsv * 1000).toFixed(3);
+  const reporter   = document.getElementById('rptSelReporter').value;
+  const instrument = document.getElementById('rptSelInstrument').value;
+
+  const notes      = (document.getElementById('rptNotes').value || '').trim();
+
+  const payload = {
+    action:     'addMeasurement',
+    eventId:    _rptCurEv.id,
+    reporter:   reporter,
+    value:      doseUsv,
+    instrument: instrument,
+    notes:      notes,
+    lat:        myPos ? String(myPos.lat.toFixed(6)) : '',
+    lng:        myPos ? String(myPos.lng.toFixed(6)) : ''
+  };
+
+  addLog(`📤 回報中：${doseUsv} μSv/h → ${_rptCurEv.name}`);
+
+  fetch(REPORT_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(function() {
+    document.getElementById('rptStatus').innerHTML =
+      `<span style="color:#16a34a;font-weight:600">✓ 回報成功！${doseUsv} μSv/h 已送出</span>`;
+    addLog(`✓ 回報成功：${doseUsv} μSv/h ／ ${reporter}`);
+    // 記憶本次選擇
+    _rptLastEventId    = payload.eventId;
+    _rptLastReporter   = reporter;
+    _rptLastInstrument = instrument;
+    btn.textContent = '✓ 已送出';
+    setTimeout(closeReportModal, 1000);
+  })
+  .catch(function(err) {
+    document.getElementById('rptStatus').innerHTML =
+      `<span style="color:#dc2626;font-weight:600">✕ 送出失敗，請確認網路</span>`;
+    addLog('✕ 回報失敗: ' + err.message, 'd');
+    btn.disabled = false; btn.textContent = '📤 確認送出'; btn.style.opacity = '1';
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  cvsC = document.getElementById('cvsCompass');
+  if(cvsC) cCtx = cvsC.getContext('2d');
+  cvsW = document.getElementById('cvsWind');
+  if(cvsW) wCtx = cvsW.getContext('2d');
+
+  // 固定情境 B，直接初始化
+  recalcQ();
+  drawWindCompass(CFG.windDir);
+  drawCompass(135, 500, 0, CFG.windDir);
+  startGPS();
+});
+
+
+
+
+
+</script>
+
+  <!-- 系統記錄 -->
+  <div class="panel">
+    <div class="log-box" id="logBox">
+      <div class="le"><span class="ts">--:--:--</span><span class="msg">輻射彈擴散模擬器就緒</span></div>
+    </div>
+  </div>
+</body>
+</html>
