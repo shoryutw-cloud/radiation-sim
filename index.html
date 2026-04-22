@@ -346,8 +346,8 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
 
-    <!-- 回報區：隱藏，僅保留按鈕供需要時使用 -->
-    <div style="display:none;">
+    <!-- 回報區：選擇事件/人員/儀器，送出回報到應變平台 -->
+    <div style="margin-top:16px;border-top:1px solid var(--green-dark);padding-top:14px;">
 
       <!-- 選擇事件 -->
       <div style="margin-bottom:10px;">
@@ -1468,6 +1468,7 @@ document.addEventListener('DOMContentLoaded', () => {
   drawWindCompass(CFG.windDir);
   drawCompass(135, 500, 0, CFG.windDir);
   startGPS();
+  loadRptEvents(); // 載入事件清單供回報使用
 });
 
 
