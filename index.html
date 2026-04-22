@@ -687,20 +687,19 @@ let CFG = {
   srcDose:   120,
   windDir:   45,
   windSpeed: 3,
-  sigma:     20,
-  refDist:   95,
+  sigma:     15,
+  refDist:   90,
   refDose:   0.0005,
   findRadius: 5,
   doseTable: [
-    [0.1,  120   ],
-    [5,    120   ],
-    [13,   12    ],
-    [25,   1.2   ],
-    [40,   0.12  ],
-    [60,   0.012 ],
-    [80,   0.0012],
-    [95,   0.0005],
-    [200,  0.0001]
+    [0.1,  120    ],
+    [5,    12     ],
+    [15,   1.2    ],
+    [30,   0.12   ],
+    [50,   0.012  ],
+    [70,   0.0012 ],
+    [90,   0.0005 ],
+    [110,  0.00005]
   ]
 };
 
@@ -751,13 +750,13 @@ function calcDose(distM, bearingFromSource) {
     if (!isFinite(doseOnAxis) || isNaN(doseOnAxis)) doseOnAxis = table[0][1];
     // 套用角度因子（下風=1，上風/橫風衰減）
     const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
-    const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.05);
+    const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.02);
     const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
     const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
-    const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
-    const windFactor = gaussian * upwindFactor + 0.05;
-    // 下風方向 windFactor ≈ 1.05，normalize 使下風正軸等於查表值
-    return Math.min(doseOnAxis * (windFactor / 1.05), CFG.srcDose) + BACKGROUND;
+    const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.02 : 1.0;
+    const windFactor = gaussian * upwindFactor + 0.01;
+    // 下風方向 windFactor ≈ 1.01，normalize 使下風正軸等於查表值
+    return Math.min(doseOnAxis * (windFactor / 1.01), CFG.srcDose) + BACKGROUND;
   }
 
   // ── 原始逆平方模式（A/C情境）──
