@@ -362,6 +362,20 @@ input[type=range]::-webkit-slider-thumb {
         </select>
       </div>
 
+      <!-- 備註（選填）-->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          備註 <span style="color:rgba(0,229,255,.35);font-size:12px;">（選填）</span>
+        </div>
+        <textarea id="rptNotes" placeholder="可輸入補充說明…" maxlength="200" rows="2"
+          style="width:100%;background:#000;border:1px solid var(--green-dark);
+                 color:var(--green);font-family:'Share Tech Mono',monospace;font-size:15px;
+                 padding:8px;outline:none;resize:vertical;line-height:1.6;
+                 transition:border-color .2s;"
+          onfocus="this.style.borderColor='var(--green-dim)'"
+          onblur="this.style.borderColor='var(--green-dark)'"></textarea>
+      </div>
+
       <!-- 回報按鈕 -->
       <button class="btn" id="btnOpenReport" onclick="openReportModal()"
               style="border-color:var(--lime);color:var(--lime);letter-spacing:2px;font-size:18px;opacity:0.35;cursor:not-allowed;">
@@ -1316,13 +1330,11 @@ function onRptEventChange() {
 
 // ── 主畫面驗證：事件和人員都選了才啟用回報按鈕 ──
 function onMainValidate() {
-  const evOk       = document.getElementById('rptSelEvent').value !== '';
-  const reporterOk = document.getElementById('rptSelReporter').value !== '';
-  const ok = evOk && reporterOk;
-  const btn = document.getElementById('btnOpenReport');
-  btn.disabled          = !ok;
-  btn.style.opacity     = ok ? '1' : '0.35';
-  btn.style.cursor      = ok ? 'pointer' : 'not-allowed';
+  const evOk = document.getElementById('rptSelEvent').value !== '';
+  const btn  = document.getElementById('btnOpenReport');
+  btn.disabled      = !evOk;
+  btn.style.opacity = evOk ? '1' : '0.35';
+  btn.style.cursor  = evOk ? 'pointer' : 'not-allowed';
 }
 
 // ── 開啟確認 Modal ──
