@@ -294,23 +294,24 @@ input[type=range]::-webkit-slider-thumb {
     <span id="myLng"></span>
   </div>
 
+  <!-- 地點選擇 -->
+  <div class="panel" style="padding:10px 14px;">
+    <div style="font-size:12px;color:var(--green-dim);letter-spacing:2px;margin-bottom:8px;">▶ 選擇地點</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn" id="locBtn0" onclick="selectLocation(0)"
+        style="font-size:16px;letter-spacing:3px;padding:11px 8px;">
+        📍 國原院
+      </button>
+      <button class="btn" id="locBtn1" onclick="selectLocation(1)"
+        style="font-size:16px;letter-spacing:3px;padding:11px 8px;">
+        📍 後門
+      </button>
+    </div>
+  </div>
+
   <!-- DOSE -->
   <div class="panel">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <div class="ptitle" style="margin:0">▶ 即時輻射偵測</div>
-      <div style="display:flex;gap:0;border:1px solid var(--green-dark);border-radius:6px;overflow:hidden">
-        <button id="modeBtn_dose" onclick="setDisplayMode('dose')"
-          style="padding:4px 10px;border:none;background:var(--green);color:#000;
-          font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">
-          μSv/h
-        </button>
-        <button id="modeBtn_cps" onclick="setDisplayMode('cps')"
-          style="padding:4px 10px;border:none;background:transparent;color:var(--green-dim);
-          font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">
-          β cps
-        </button>
-      </div>
-    </div>
+    <div class="ptitle">▶ 即時輻射劑量率</div>
     <div class="dose-big" style="display:flex;align-items:baseline;justify-content:center;gap:10px;">
       <div class="dose-num" id="doseNum">---</div>
       <div class="dose-unit" id="doseUnit">μSv/h</div>
@@ -327,10 +328,10 @@ input[type=range]::-webkit-slider-thumb {
       <!-- Threshold labels row - same line, under dividing points -->
       <div style="display:flex;position:relative;height:24px;margin-bottom:4px;">
         <div style="position:absolute;left:33%;transform:translateX(-50%);">
-          <span id="threshLow" style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">0.5 μSv/h</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">0.5 μSv/h</span>
         </div>
         <div style="position:absolute;left:66%;transform:translateX(-50%);">
-          <span id="threshHigh" style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">100 μSv/h</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green-dim);white-space:nowrap;">100 μSv/h</span>
         </div>
       </div>
       <!-- Zone buttons row -->
@@ -360,7 +361,7 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
 
-    <!-- 回報區：選擇事件/人員/儀器，送出回報到應變平台 -->
+    <!-- 回報區：事件/人員/儀器選擇在主畫面，按鈕後只做確認 -->
     <div style="margin-top:16px;border-top:1px solid var(--green-dark);padding-top:14px;">
 
       <!-- 選擇事件 -->
@@ -376,7 +377,20 @@ input[type=range]::-webkit-slider-thumb {
         </select>
       </div>
 
-      <!-- 備註（選填）-->
+      <!-- 選擇儀器（選填） -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
+          使用儀器
+        </div>
+        <select id="rptSelInstrument" style="
+          width:100%;background:#000;border:1px solid var(--green-dark);
+          color:var(--green);font-family:'Share Tech Mono',monospace;font-size:17px;
+          padding:10px;outline:none;">
+          <option value="">— 不指定 —</option>
+        </select>
+      </div>
+
+      <!-- 備註（選填） -->
       <div style="margin-bottom:14px;">
         <div style="font-size:13px;color:var(--green-dim);letter-spacing:2px;margin-bottom:5px;">
           備註 <span style="color:rgba(0,229,255,.35);font-size:12px;">（選填）</span>
@@ -487,14 +501,10 @@ async function loadConfigFromSheet() {
 }
 
 // Apply scenario by name (A/B/C), default A
-let _lastAppliedScenario = '';
 function applyScenario(scenario) {
   const lbl = document.getElementById('activeScenarioLabel');
   if (!SCENARIOS[scenario]) scenario = 'A';
   const s = SCENARIOS[scenario];
-  const scenarioChanged = scenario !== _lastAppliedScenario;
-  _lastAppliedScenario = scenario;
-
   CFG.srcLat    = s.srcLat;
   CFG.srcLng    = s.srcLng;
   CFG.srcDose   = s.srcDose;
@@ -503,37 +513,9 @@ function applyScenario(scenario) {
   CFG.sigma     = s.sigma;
   CFG.refDist   = s.refDist;
   CFG.refDose   = s.refDose;
-  CFG.doseTable = s.doseTable || null;
   recalcQ();
   syncAdminUI();
   if(lbl) lbl.textContent = scenario;
-
-  // ── 只在情境切換時重置顯示 ──
-  if (scenarioChanged) {
-    lastDoseMsv = null;
-    cumDose = 0;
-    lastUpdateMs = null;
-    foundSource = false;
-    const dEl = document.getElementById('doseNum');
-    const uEl = document.getElementById('doseUnit');
-    const dstEl = document.getElementById('distNum');
-    const cumEl = document.getElementById('cumDoseNum');
-    if (dEl) dEl.textContent = '—';
-    if (uEl) uEl.textContent = 'μSv/h';
-    if (dstEl) dstEl.textContent = '—';
-    if (cumEl) cumEl.textContent = '0.0000';
-  }
-  // 若 GPS 已定位，立即用新情境重新計算
-  if (myPos) {
-    const distM = haversine(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
-    const bearingToSrc  = bearing(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
-    const bearingFromSrc = bearing(CFG.srcLat, CFG.srcLng, myPos.lat, myPos.lng);
-    const dose = calcDose(distM, bearingFromSrc);
-    if (isFinite(dose) && !isNaN(dose)) {
-      lastDoseMsv = dose;
-      updateUI(dose, distM, bearingToSrc, bearingFromSrc);
-    }
-  }
 }
 
 // applyScenarioData kept for compatibility
@@ -632,63 +614,29 @@ const SCENARIOS = {
     sigma: 10, refDist: 37, refDose: 0.0005
   },
   B: {
-    name: '桃園輻射彈',
-    srcLat: 24.853848, srcLng: 121.254509,
-    srcDose: 120, windDir: 45, windSpeed: 3,
-    sigma: 20, refDist: 95, refDose: 0.0005,
-    // 下風方向查表（distM, mSv/h）—— 查表插值，不受逆平方限制
-    doseTable: [
-      [0.1,  120   ],
-      [5,    120   ],
-      [13,   12    ],
-      [25,   1.2   ],
-      [40,   0.12  ],
-      [60,   0.012 ],
-      [80,   0.0012],
-      [95,   0.0005],
-      [200,  0.0001]
-    ]
+    name: '',
+    srcLat: 25.001512297908036, srcLng: 121.52701971950229,
+    srcDose: 500, windDir: 180, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
   },
   C: {
-    name: '永和輻射彈',
-    srcLat: 25.003221, srcLng: 121.526246,
-    srcDose: 120, windDir: 180, windSpeed: 3,
-    sigma: 20, refDist: 95, refDose: 0.0005,
-    doseTable: [
-      [0.1,  120   ],
-      [5,    120   ],
-      [13,   12    ],
-      [25,   1.2   ],
-      [40,   0.12  ],
-      [60,   0.012 ],
-      [80,   0.0012],
-      [95,   0.0005],
-      [200,  0.0001]
-    ]
+    name: '',
+    srcLat: 25.00323684121605, srcLng: 121.52493776685955,
+    srcDose: 500, windDir: 90, windSpeed: 3,
+    sigma: 25, refDist: 70, refDose: 1
   }
 };
 
-// 固定使用情境 B（桃園輻射彈）
 let CFG = {
-  srcLat:    24.853848,
-  srcLng:    121.254509,
-  srcDose:   120,
-  windDir:   45,
-  windSpeed: 3,
-  sigma:     7,
-  refDist:   90,
-  refDose:   0.0005,
-  findRadius: 5,
-  doseTable: [
-    [0.1,  120    ],
-    [5,    12     ],
-    [15,   1.2    ],
-    [30,   0.12   ],
-    [50,   0.012  ],
-    [70,   0.0012 ],
-    [90,   0.0005 ],
-    [110,  0.00005]
-  ]
+  srcLat: 25.00306850713046,
+  srcLng: 121.526629,
+  srcDose: 500,       // mSv/h at source point
+  refDist: 70,        // metres at which refDose applies
+  refDose: 1,         // mSv/h at refDist
+  findRadius: 10,     // metres to trigger "found"
+  windDir: 135,       // degrees, direction plume travels (SE)
+  windSpeed: 3,       // m/s
+  sigma: 20,          // Gaussian crosswind spread (metres)
 };
 
 // Derive source strength Q from reference point
@@ -714,47 +662,30 @@ function calcDose(distM, bearingFromSource) {
   // bearingFromSource: bearing FROM source TO sensor (degrees)
   if (distM < 0.5) return CFG.srcDose;
 
-  // ── 查表模式（B情境）：對下風方向劑量做 log-log 插值，再套用角度因子 ──
-  if (CFG.doseTable && CFG.doseTable.length >= 2) {
-    const table = CFG.doseTable;
-    let doseOnAxis = table[table.length - 1][1]; // 預設最遠值
-    if (distM <= table[0][0]) {
-      doseOnAxis = table[0][1];
-    } else if (distM >= table[table.length - 1][0]) {
-      doseOnAxis = table[table.length - 1][1];
-    } else {
-      for (let i = 0; i < table.length - 1; i++) {
-        if (distM <= table[i + 1][0]) {
-          // log-log 線性插值（確保兩端都 > 0 才 log）
-          const d0 = table[i][0], d1 = table[i + 1][0];
-          const v0 = table[i][1], v1 = table[i + 1][1];
-          const t = (distM - d0) / (d1 - d0);
-          // log-log：取對數插值
-          doseOnAxis = Math.exp(Math.log(v0) + t * (Math.log(v1) - Math.log(v0)));
-          break;
-        }
-      }
-    }
-    if (!isFinite(doseOnAxis) || isNaN(doseOnAxis)) doseOnAxis = table[0][1];
-    // 套用角度因子（下風=1，上風/橫風衰減）
-    const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
-    const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.02);
-    const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
-    const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
-    const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.02 : 1.0;
-    const windFactor = gaussian * upwindFactor + 0.01;
-    // 下風方向 windFactor ≈ 1.01，normalize 使下風正軸等於查表值
-    return Math.min(doseOnAxis * (windFactor / 1.01), CFG.srcDose) + BACKGROUND;
-  }
-
-  // ── 原始逆平方模式（A/C情境）──
+  // Inverse square component
   const invSq = Q_eff / (distM * distM);
+
+  // Gaussian plume angular factor
+  // windDir = direction plume travels
+  // downwind direction = windDir
+  // angle between sensor bearing and downwind direction
   const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
+
+  // σ_angular increases with distance (simple linear approximation)
   const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.1);
+
+  // Convert angular sigma to arc-length sigma at this distance
+  // σ_arc = sigmaEff (metres), convert to angle: σ_ang = sigmaEff/distM * (180/π)
   const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
+
+  // Gaussian factor (0 to 1)
   const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+
+  // Upwind penalty: upwind side gets much less
   const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
-  const windFactor = gaussian * upwindFactor + 0.05;
+
+  const windFactor = gaussian * upwindFactor + 0.05; // 0.05 = minimum from scatter
+
   const dose = invSq * windFactor + BACKGROUND;
   return Math.min(dose, CFG.srcDose);
 }
@@ -1039,81 +970,42 @@ async function applyConfig() {
   if(btn){ btn.textContent = ok ? '✓ 已發布至雲端' : '✕ 發布失敗'; btn.disabled=false;
     setTimeout(()=>{ btn.textContent='✓ 套用並發布情境'; }, 2000);
   }
-  if(ok) {
-    addLog('✓ 情境 ' + currentScenario + ' 發布成功');
-    // 立即在本地套用，不用等輪詢
-    applyScenario(currentScenario);
-  }
+  if(ok) addLog('✓ 情境 ' + currentScenario + ' 發布成功');
   document.getElementById('adminBody').classList.remove('open');
 }
 
 // ============================================================
 // UI UPDATE
 // ============================================================
-// ── 顯示模式：'dose'（劑量率）| 'cps'（β污染，500 cps/μSv/h）──
-var _displayMode = 'dose';
-var CPS_PER_USV  = 500; // 轉換係數：500 cps / μSv/h
-
-function setDisplayMode(mode) {
-  _displayMode = mode;
-  var btnDose = document.getElementById('modeBtn_dose');
-  var btnCps  = document.getElementById('modeBtn_cps');
-  var tLow    = document.getElementById('threshLow');
-  var tHigh   = document.getElementById('threshHigh');
-  if (btnDose) { btnDose.style.background = (mode==='dose') ? 'var(--green)' : 'transparent'; btnDose.style.color = (mode==='dose') ? '#000' : 'var(--green-dim)'; }
-  if (btnCps)  { btnCps.style.background  = (mode==='cps')  ? 'var(--green)' : 'transparent'; btnCps.style.color  = (mode==='cps')  ? '#000' : 'var(--green-dim)'; }
-  // 更新閾值標籤
-  if (tLow)  tLow.textContent  = (mode==='dose') ? '0.5 μSv/h' : '250 cps';
-  if (tHigh) tHigh.textContent = (mode==='dose') ? '100 μSv/h' : '50,000 cps';
-  // 用目前 lastDoseMsv 重新渲染
-  if (lastDoseMsv !== null && myPos) {
-    const distM = haversine(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
-    const bearingToSrc   = bearing(myPos.lat, myPos.lng, CFG.srcLat, CFG.srcLng);
-    const bearingFromSrc = bearing(CFG.srcLat, CFG.srcLng, myPos.lat, myPos.lng);
-    updateUI(lastDoseMsv, distM, bearingToSrc, bearingFromSrc);
-  }
-}
-
 function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
   // Dose display - auto switch unit: μSv/h below 0.999 mSv/h, mSv/h above
   const dEl = document.getElementById('doseNum');
   const uEl = document.getElementById('doseUnit');
-  let dStr, color, alertLevel, zoneName, zoneDesc;
-
-  if (_displayMode === 'cps') {
-    // β 污染 cps 模式（500 cps/μSv/h）
+  let dStr;
+  if (dose < 0.999) {
+    // Show as μSv/h
     const uSv = dose * 1000;
-    const cps = Math.round(uSv * CPS_PER_USV);
-    dStr = cps >= 10000 ? (cps/1000).toFixed(1)+'k' : cps.toString();
-    if (uEl) uEl.textContent = 'β cps';
-    // 閾值：250 cps = 0.5μSv/h，50000 cps = 100μSv/h
-    if (cps < 250) {
-      color='#5bbcb8'; alertLevel=0; zoneName='冷　區'; zoneDesc='&lt; 250 cps';
-    } else if (cps < 50000) {
-      color='#e8923a'; alertLevel=1; zoneName='暖　區'; zoneDesc='250 ~ 50,000 cps';
-    } else {
-      color='#d94f2b'; alertLevel=2; zoneName='熱　區'; zoneDesc='≥ 50,000 cps';
-    }
+    dStr = uSv >= 100 ? uSv.toFixed(1) : uSv >= 10 ? uSv.toFixed(2) : uSv.toFixed(3);
+    if(uEl) uEl.textContent = 'μSv/h';
   } else {
-    // 劑量率模式（原邏輯不變）
-    if (dose < 0.999) {
-      const uSv = dose * 1000;
-      dStr = uSv >= 100 ? uSv.toFixed(1) : uSv >= 10 ? uSv.toFixed(2) : uSv.toFixed(3);
-      if(uEl) uEl.textContent = 'μSv/h';
-    } else {
-      dStr = dose >= 100 ? dose.toFixed(1) : dose >= 10 ? dose.toFixed(2) : dose.toFixed(3);
-      if(uEl) uEl.textContent = 'mSv/h';
-    }
-    if (dose < 0.0005) {
-      color='#5bbcb8'; alertLevel=0; zoneName='冷　區'; zoneDesc='&lt; 0.5 μSv/h';
-    } else if (dose < 0.1) {
-      color='#e8923a'; alertLevel=1; zoneName='暖　區'; zoneDesc='0.5 ~ 100 μSv/h';
-    } else {
-      color='#d94f2b'; alertLevel=2; zoneName='熱　區'; zoneDesc='≥ 100 μSv/h';
-    }
+    // Show as mSv/h
+    dStr = dose >= 100 ? dose.toFixed(1) : dose >= 10 ? dose.toFixed(2) : dose.toFixed(3);
+    if(uEl) uEl.textContent = 'mSv/h';
+  }
+  dEl.textContent = dStr;
+
+  // Zone: dose in mSv/h, thresholds: 0.5 μSv/h = 0.0005 mSv/h, 100 μSv/h = 0.1 mSv/h
+  // dose unit here is mSv/h
+  let color, alertLevel, zoneName, zoneDesc;
+  if (dose < 0.0005) {
+    color='#5bbcb8'; alertLevel=0; zoneName='冷　區'; zoneDesc='&lt; 0.5 μSv/h';
+  } else if (dose < 0.1) {
+    color='#e8923a'; alertLevel=1; zoneName='暖　區'; zoneDesc='0.5 ~ 100 μSv/h';
+  } else {
+    color='#d94f2b'; alertLevel=2; zoneName='熱　區'; zoneDesc='≥ 100 μSv/h';
   }
 
-  if(dEl){ dEl.textContent = dStr; dEl.style.color = color; }
+  dEl.style.color = color;
 
   // Zone display
   const zd = document.getElementById('zoneDisplay');
@@ -1152,9 +1044,7 @@ function updateUI(dose, distM, bearingToSrc, bearingFromSrc) {
 
   // Wind factor display
   const angleDiff = deltaAngle(bearingFromSrc, CFG.windDir);
-  const sigmaAng = distM > 0.5
-    ? (Math.max(CFG.sigma, CFG.sigma+distM*0.1)/distM)*(180/Math.PI)
-    : 180; // distM≈0 時給最大角度，避免除以0
+  const sigmaAng = (Math.max(CFG.sigma, CFG.sigma+distM*0.1)/distM)*(180/Math.PI);
   const wf = Math.exp(-(angleDiff*angleDiff)/(2*sigmaAng*sigmaAng));
   const upwind = isUpwind(bearingFromSrc, CFG.windDir);
   const wfFinal = wf*(upwind?0.08:1.0)+0.05;
@@ -1228,8 +1118,7 @@ function onPos(pos) {
   const bearingToSrc = bearing(lat,lng,CFG.srcLat,CFG.srcLng);
   const bearingFromSrc = bearing(CFG.srcLat,CFG.srcLng,lat,lng);
   const dose = calcDose(distM, bearingFromSrc);
-  if (!isFinite(dose) || isNaN(dose)) return; // GPS 漂移產生異常值時直接跳過
-  lastDoseMsv = dose;
+  lastDoseMsv = dose; // 儲存原始 mSv/h 數值，回報時直接使用不需從 DOM 反推
 
   // Cumulative
   const now=Date.now();
@@ -1293,7 +1182,7 @@ let _rptJsonpCounter = 0;
 
 // 記憶上次回報的選擇
 let _rptLastEventId    = null;
-let _rptLastReporter   = '';
+let _rptLastEventId    = '';
 let _rptLastInstrument = '';
 
 // ── JSONP 工具（繞過 CORS）──
@@ -1333,26 +1222,19 @@ function loadRptEvents() {
   });
 }
 
-// ── 選擇事件後，填入人員和儀器清單 ──
+// ── 選擇事件後，填入儀器清單 ──
 function onRptEventChange() {
   const idx           = document.getElementById('rptSelEvent').value;
-  const reporterSel   = document.getElementById('rptSelReporter');
   const instrumentSel = document.getElementById('rptSelInstrument');
 
   if (idx === '') {
     _rptCurEv = null;
-    reporterSel.innerHTML   = '<option value="">— 請先選擇事件 —</option>';
     instrumentSel.innerHTML = '<option value="">— 不指定 —</option>';
     onMainValidate();
     return;
   }
 
   _rptCurEv = _rptEvents[parseInt(idx)];
-
-  // 解析人員清單（格式：隊別:姓名, 隊別:姓名）
-  const names = (_rptCurEv.personnelStr || '').split(',').map(s => s.trim()).filter(Boolean);
-  reporterSel.innerHTML = '<option value="">— 請選擇回報人員 —</option>' +
-    names.map(n => `<option value="${n}">${n}</option>`).join('');
 
   // 解析儀器清單
   const instrNames = [];
@@ -1365,25 +1247,24 @@ function onRptEventChange() {
   instrumentSel.innerHTML = '<option value="">— 不指定 —</option>' +
     instrNames.map(n => `<option value="${n}">${n}</option>`).join('');
 
-  // 有記憶的人員/儀器 → 自動帶入
-  [['rptSelReporter', _rptLastReporter], ['rptSelInstrument', _rptLastInstrument]].forEach(([id, val]) => {
-    if (!val) return;
-    const el = document.getElementById(id);
+  // 記憶儀器帶入
+  if (_rptLastInstrument) {
+    const el = document.getElementById('rptSelInstrument');
     for (let i = 0; i < el.options.length; i++) {
-      if (el.options[i].value === val) { el.value = val; break; }
+      if (el.options[i].value === _rptLastInstrument) { el.value = _rptLastInstrument; break; }
     }
-  });
+  }
 
   onMainValidate();
 }
 
-// ── 主畫面驗證：事件和人員都選了才啟用回報按鈕 ──
+// ── 主畫面驗證：事件選了才啟用回報按鈕 ──
 function onMainValidate() {
-  const evOk = document.getElementById('rptSelEvent').value !== '';
-  const btn  = document.getElementById('btnOpenReport');
-  btn.disabled      = !evOk;
-  btn.style.opacity = evOk ? '1' : '0.35';
-  btn.style.cursor  = evOk ? 'pointer' : 'not-allowed';
+  const ok = document.getElementById('rptSelEvent').value !== '';
+  const btn = document.getElementById('btnOpenReport');
+  btn.disabled      = !ok;
+  btn.style.opacity = ok ? '1' : '0.35';
+  btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
 }
 
 // ── 開啟確認 Modal ──
@@ -1394,16 +1275,13 @@ function openReportModal() {
   }
   if (!_rptCurEv) return;
 
-  const doseUsv = (lastDoseMsv * 1000).toFixed(3); // mSv/h → μSv/h
-  const reporter   = document.getElementById('rptSelReporter').value;
+  const doseUsv = (lastDoseMsv * 1000).toFixed(3);
   const instrument = document.getElementById('rptSelInstrument').value;
   const latText    = myPos ? myPos.lat.toFixed(6) : '---';
   const lngText    = myPos ? myPos.lng.toFixed(6) : '---';
 
-  // 組合確認內容
   document.getElementById('rptPreview').innerHTML =
     `事件：<strong>${_rptCurEv.name}</strong>` +
-    `<br>人員：<strong>${reporter}</strong>` +
     (instrument ? `<br>儀器：<strong>${instrument}</strong>` : '') +
     `<br>劑量：<span style="color:#15803d;font-size:22px;font-weight:700;">${doseUsv} μSv/h</span>` +
     `<br>GPS：${latText}, ${lngText}`;
@@ -1433,15 +1311,12 @@ function submitReportFromSim() {
   btn.style.opacity = '0.5';
 
   const doseUsv    = (lastDoseMsv * 1000).toFixed(3);
-  const reporter   = document.getElementById('rptSelReporter').value;
   const instrument = document.getElementById('rptSelInstrument').value;
-
   const notes      = (document.getElementById('rptNotes').value || '').trim();
 
   const payload = {
     action:     'addMeasurement',
     eventId:    _rptCurEv.id,
-    reporter:   reporter,
     value:      doseUsv,
     instrument: instrument,
     notes:      notes,
@@ -1459,10 +1334,8 @@ function submitReportFromSim() {
   .then(function() {
     document.getElementById('rptStatus').innerHTML =
       `<span style="color:#16a34a;font-weight:600">✓ 回報成功！${doseUsv} μSv/h 已送出</span>`;
-    addLog(`✓ 回報成功：${doseUsv} μSv/h ／ ${reporter}`);
-    // 記憶本次選擇
+    addLog(`✓ 回報成功：${doseUsv} μSv/h`);
     _rptLastEventId    = payload.eventId;
-    _rptLastReporter   = reporter;
     _rptLastInstrument = instrument;
     btn.textContent = '✓ 已送出';
     setTimeout(closeReportModal, 1000);
@@ -1476,20 +1349,45 @@ function submitReportFromSim() {
 }
 
 // ============================================================
-// INIT
+// 地點快選
 // ============================================================
+const LOCATIONS = [
+  { name: '國原院', lat: 25.003327,  lng: 121.526629  },
+  { name: '後門',   lat: 25.003187,  lng: 121.526252  },
+];
+let _activeLoc = -1;
+
+function selectLocation(idx) {
+  const loc = LOCATIONS[idx];
+  if (!loc) return;
+  document.getElementById('srcLat').value = loc.lat;
+  document.getElementById('srcLng').value = loc.lng;
+  _activeLoc = idx;
+  LOCATIONS.forEach((_, i) => {
+    const btn = document.getElementById('locBtn' + i);
+    if (!btn) return;
+    btn.style.background    = i === idx ? 'rgba(0,229,255,0.18)' : '';
+    btn.style.borderColor   = i === idx ? 'var(--green)'         : '';
+    btn.style.color         = i === idx ? 'var(--green)'         : '';
+    btn.style.boxShadow     = i === idx ? '0 0 8px rgba(0,229,255,0.3)' : '';
+  });
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   cvsC = document.getElementById('cvsCompass');
   if(cvsC) cCtx = cvsC.getContext('2d');
   cvsW = document.getElementById('cvsWind');
   if(cvsW) wCtx = cvsW.getContext('2d');
 
-  // 固定情境 B，直接初始化
-  recalcQ();
   drawWindCompass(CFG.windDir);
   drawCompass(135, 500, 0, CFG.windDir);
+  loadConfigFromSheet().then(() => {
+    drawCompass(135, 500, 0, CFG.windDir);
+  });
+  startPolling();
   startGPS();
-  loadRptEvents(); // 載入事件清單供回報使用
+  loadRptEvents(); // 頁面載入後立即拉取事件清單，供主畫面選擇
 });
 
 
@@ -1498,11 +1396,125 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 
-  <!-- 系統記錄 -->
+  <!-- SCENARIO CONFIG -->
   <div class="panel">
-    <div class="log-box" id="logBox">
-      <div class="le"><span class="ts">--:--:--</span><span class="msg">輻射彈擴散模擬器就緒</span></div>
+    <button class="admin-toggle" onclick="toggleAdmin()">⚙ 情境設定面板 ▾</button>
+    <div id="pwModal" style="display:none;margin-top:12px;">
+      <div style="font-size:16px;color:var(--amber);letter-spacing:3px;margin-bottom:8px;">🔒 請輸入密碼解鎖設定</div>
+      <div style="display:flex;gap:8px;">
+        <input type="password" id="pwInput" maxlength="10"
+          style="flex:1;background:#000;border:1px solid var(--amber);color:var(--amber);
+                 font-family:'Share Tech Mono',monospace;font-size:22px;padding:8px;
+                 letter-spacing:6px;outline:none;text-align:center;"
+          placeholder="·····"
+          onkeydown="if(event.key==='Enter')checkPw()">
+        <button class="btn amber" style="width:70px;padding:8px;font-size:16px;" onclick="checkPw()">確認</button>
+      </div>
+      <div id="pwError" style="display:none;color:var(--red);font-size:16px;letter-spacing:2px;margin-top:6px;">✕ 密碼錯誤，請重試</div>
+    </div>
+    <div class="admin-body" id="adminBody">
+      <div class="admin-badge">INSTRUCTOR MODE &nbsp;·&nbsp; <span style="cursor:pointer;text-decoration:underline;" onclick="lockAdmin()">🔒 鎖定</span></div>
+
+      <!-- Scenario selector -->
+      <div class="ptitle" style="margin-bottom:8px;">▶ 選擇情境</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+        <button class="btn" id="scnBtnA" onclick="selectScenario('A')" style="text-align:left;padding:10px 12px;height:auto;">
+          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 A</div>
+          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
+            地點: 核安會後門<br>
+            緯度: 25.003176<br>
+            經度: 121.526209<br>
+            爆炸點劑量: 3 mSv/h<br>
+            風向: 180°（南）<br>
+            風速: 4 m/s<br>
+            擴散寬度σ: 10 m<br>
+            校準距離: 37 m<br>
+            校準劑量: 0.0005 mSv/h
+          </div>
+        </button>
+        <button class="btn" id="scnBtnB" onclick="selectScenario('B')" style="text-align:left;padding:10px 12px;height:auto;">
+          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 B</div>
+          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
+            地點:<br>
+            緯度: 25.00151<br>
+            經度: 121.52702<br>
+            爆炸點劑量: 500 mSv/h<br>
+            風向: 180°（南）<br>
+            風速: 3 m/s<br>
+            擴散寬度σ: 25 m<br>
+            校準距離: 70 m<br>
+            校準劑量: 1 mSv/h
+          </div>
+        </button>
+        <button class="btn" id="scnBtnC" onclick="selectScenario('C')" style="text-align:left;padding:10px 12px;height:auto;">
+          <div style="font-size:18px;letter-spacing:3px;margin-bottom:6px;">情境 C</div>
+          <div style="font-size:12px;letter-spacing:0;opacity:0.8;line-height:1.9;font-family:monospace;text-transform:none;">
+            地點:<br>
+            緯度: 25.00324<br>
+            經度: 121.52494<br>
+            爆炸點劑量: 500 mSv/h<br>
+            風向: 90°（東）<br>
+            風速: 3 m/s<br>
+            擴散寬度σ: 25 m<br>
+            校準距離: 70 m<br>
+            校準劑量: 1 mSv/h
+          </div>
+        </button>
+      </div>
+      <div id="scnStatus" style="font-size:14px;color:var(--amber);letter-spacing:2px;margin-bottom:10px;min-height:20px;"></div>
+
+      <div class="src-grid">
+        <div class="src-field">
+          <label>射源緯度 LAT</label>
+          <input type="text" id="srcLat" value="25.003327">
+        </div>
+        <div class="src-field">
+          <label>射源經度 LNG</label>
+          <input type="text" id="srcLng" value="121.526629">
+        </div>
+        <div class="src-field">
+          <label>爆炸點劑量 (mSv/h)</label>
+          <input type="number" id="srcDose" value="500" min="1" max="9999">
+        </div>
+        <div class="src-field">
+          <label>校準距離 (m)</label>
+          <input type="number" id="refDist" value="70" min="1">
+        </div>
+        <div class="src-field">
+          <label>校準點劑量 (mSv/h)</label>
+          <input type="number" id="refDose" value="1" min="0.001" step="0.001">
+        </div>
+
+      </div>
+      <div class="ptitle" style="margin-top:8px;">風向設定</div>
+      <div class="wind-wrap">
+        <div class="wind-compass">
+          <canvas id="cvsWind" width="80" height="80"></canvas>
+        </div>
+        <div class="wind-info">
+          <label>風向（吹向）: <span id="windDirLabel" style="color:var(--green)">東南 135°</span></label>
+          <input type="range" id="windDir" min="0" max="359" value="135" oninput="onWindChange()">
+          <div style="margin-top:10px;">
+            <label>風速: <span id="windSpeedLabel" style="color:var(--green)">3 m/s</span></label>
+            <input type="range" id="windSpeed" min="1" max="15" value="3" oninput="onWindSpeedChange()">
+          </div>
+          <div style="margin-top:10px;">
+            <label>擴散寬度 σ: <span id="sigmaLabel" style="color:var(--green)">20 m</span></label>
+            <input type="range" id="sigmaCtrl" min="5" max="80" value="20" oninput="onSigmaChange()">
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn amber" onclick="applyConfig()">✓ 套用並發布情境</button>
+      </div>
+      <div style="margin-top:14px;">
+        <div class="ptitle" style="margin-bottom:8px;">▶ 系統記錄</div>
+        <div class="log-box" id="logBox">
+          <div class="le"><span class="ts">--:--:--</span><span class="msg">輻射彈擴散模擬器就緒</span></div>
+        </div>
+      </div>
     </div>
   </div>
+
 </body>
 </html>
