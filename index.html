@@ -1182,7 +1182,6 @@ let _rptJsonpCounter = 0;
 
 // 記憶上次回報的選擇
 let _rptLastEventId    = null;
-let _rptLastEventId    = '';
 let _rptLastInstrument = '';
 
 // ── JSONP 工具（繞過 CORS）──
@@ -1360,16 +1359,23 @@ let _activeLoc = -1;
 function selectLocation(idx) {
   const loc = LOCATIONS[idx];
   if (!loc) return;
-  document.getElementById('srcLat').value = loc.lat;
-  document.getElementById('srcLng').value = loc.lng;
+  // 更新 CFG（實際運算用）
+  CFG.srcLat = loc.lat;
+  CFG.srcLng = loc.lng;
+  recalcQ();
+  // 同步 admin 欄位
+  const elLat = document.getElementById('srcLat');
+  const elLng = document.getElementById('srcLng');
+  if (elLat) elLat.value = loc.lat;
+  if (elLng) elLng.value = loc.lng;
   _activeLoc = idx;
   LOCATIONS.forEach((_, i) => {
     const btn = document.getElementById('locBtn' + i);
     if (!btn) return;
-    btn.style.background    = i === idx ? 'rgba(0,229,255,0.18)' : '';
-    btn.style.borderColor   = i === idx ? 'var(--green)'         : '';
-    btn.style.color         = i === idx ? 'var(--green)'         : '';
-    btn.style.boxShadow     = i === idx ? '0 0 8px rgba(0,229,255,0.3)' : '';
+    btn.style.background = i === idx ? 'rgba(0,229,255,0.18)' : '';
+    btn.style.borderColor = i === idx ? 'var(--green)' : '';
+    btn.style.color       = i === idx ? 'var(--green)' : '';
+    btn.style.boxShadow   = i === idx ? '0 0 8px rgba(0,229,255,0.3)' : '';
   });
 }
 
