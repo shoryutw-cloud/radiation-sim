@@ -659,34 +659,46 @@ recalcQ();
 const BACKGROUND = 0.0001; // mSv/h (≈0.1 μSv/h)
 
 function calcDose(distM, bearingFromSource) {
-  // bearingFromSource: bearing FROM source TO sensor (degrees)
   if (distM < 0.5) return CFG.srcDose;
 
-  // Inverse square component
-  const invSq = Q_eff / (distM * distM);
+  // ── 查表模式（國原院等有 doseTable 的情境）：log-log 插值 + 角度因子 ──
+  if (CFG.doseTable && CFG.doseTable.length >= 2) {
+    const table = CFG.doseTable;
+    let doseOnAxis = table[table.length - 1][1];
+    if (distM <= table[0][0]) {
+      doseOnAxis = table[0][1];
+    } else if (distM >= table[table.length - 1][0]) {
+      doseOnAxis = table[table.length - 1][1];
+    } else {
+      for (let i = 0; i < table.length - 1; i++) {
+        if (distM <= table[i + 1][0]) {
+          const d0 = table[i][0], d1 = table[i + 1][0];
+          const v0 = table[i][1], v1 = table[i + 1][1];
+          const t = (distM - d0) / (d1 - d0);
+          doseOnAxis = Math.exp(Math.log(v0) + t * (Math.log(v1) - Math.log(v0)));
+          break;
+        }
+      }
+    }
+    if (!isFinite(doseOnAxis) || isNaN(doseOnAxis)) doseOnAxis = table[0][1];
+    const angleDiff    = deltaAngle(bearingFromSource, CFG.windDir);
+    const sigmaEff     = Math.max(CFG.sigma, CFG.sigma + distM * 0.02);
+    const sigmaAng     = (sigmaEff / distM) * (180 / Math.PI);
+    const gaussian     = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
+    const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.02 : 1.0;
+    const windFactor   = gaussian * upwindFactor + 0.01;
+    return Math.min(doseOnAxis * (windFactor / 1.01), CFG.srcDose) + BACKGROUND;
+  }
 
-  // Gaussian plume angular factor
-  // windDir = direction plume travels
-  // downwind direction = windDir
-  // angle between sensor bearing and downwind direction
-  const angleDiff = deltaAngle(bearingFromSource, CFG.windDir);
-
-  // σ_angular increases with distance (simple linear approximation)
-  const sigmaEff = Math.max(CFG.sigma, CFG.sigma + distM * 0.1);
-
-  // Convert angular sigma to arc-length sigma at this distance
-  // σ_arc = sigmaEff (metres), convert to angle: σ_ang = sigmaEff/distM * (180/π)
-  const sigmaAng = (sigmaEff / distM) * (180 / Math.PI);
-
-  // Gaussian factor (0 to 1)
-  const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
-
-  // Upwind penalty: upwind side gets much less
+  // ── 逆平方模式（後門等一般情境）──
+  const invSq        = Q_eff / (distM * distM);
+  const angleDiff    = deltaAngle(bearingFromSource, CFG.windDir);
+  const sigmaEff     = Math.max(CFG.sigma, CFG.sigma + distM * 0.1);
+  const sigmaAng     = (sigmaEff / distM) * (180 / Math.PI);
+  const gaussian     = Math.exp(-(angleDiff * angleDiff) / (2 * sigmaAng * sigmaAng));
   const upwindFactor = isUpwind(bearingFromSource, CFG.windDir) ? 0.08 : 1.0;
-
-  const windFactor = gaussian * upwindFactor + 0.05; // 0.05 = minimum from scatter
-
-  const dose = invSq * windFactor + BACKGROUND;
+  const windFactor   = gaussian * upwindFactor + 0.05;
+  const dose         = invSq * windFactor + BACKGROUND;
   return Math.min(dose, CFG.srcDose);
 }
 
@@ -1351,18 +1363,45 @@ function submitReportFromSim() {
 // 地點快選
 // ============================================================
 const LOCATIONS = [
-  { name: '國原院', lat: 25.003327,  lng: 121.526629  },
-  { name: '後門',   lat: 25.003187,  lng: 121.526252  },
+  {
+    name: '國原院', lat: 24.853848, lng: 121.254509,
+    srcDose: 120, windDir: 45, windSpeed: 3,
+    sigma: 7, refDist: 90, refDose: 0.0005,
+    doseTable: [
+      [0.1,  120   ],
+      [5,    12    ],
+      [15,   1.2   ],
+      [30,   0.12  ],
+      [50,   0.012 ],
+      [70,   0.0012],
+      [90,   0.0005],
+      [110,  0.00005]
+    ]
+  },
+  {
+    name: '後門', lat: 25.003187, lng: 121.526252,
+    srcDose: 3, windDir: 180, windSpeed: 4,
+    sigma: 10, refDist: 37, refDose: 0.0005,
+    doseTable: null
+  },
 ];
 let _activeLoc = -1;
 
 function selectLocation(idx) {
   const loc = LOCATIONS[idx];
   if (!loc) return;
-  // 更新 CFG（實際運算用）
-  CFG.srcLat = loc.lat;
-  CFG.srcLng = loc.lng;
+  // 套用完整 CFG
+  CFG.srcLat    = loc.lat;
+  CFG.srcLng    = loc.lng;
+  CFG.srcDose   = loc.srcDose;
+  CFG.windDir   = loc.windDir;
+  CFG.windSpeed = loc.windSpeed;
+  CFG.sigma     = loc.sigma;
+  CFG.refDist   = loc.refDist;
+  CFG.refDose   = loc.refDose;
+  CFG.doseTable = loc.doseTable || null;
   recalcQ();
+  syncAdminUI();
   // 同步 admin 欄位
   const elLat = document.getElementById('srcLat');
   const elLng = document.getElementById('srcLng');
@@ -1377,6 +1416,7 @@ function selectLocation(idx) {
     btn.style.color       = i === idx ? 'var(--green)' : '';
     btn.style.boxShadow   = i === idx ? '0 0 8px rgba(0,229,255,0.3)' : '';
   });
+  addLog(`📍 切換地點：${loc.name}`);
 }
 
 
